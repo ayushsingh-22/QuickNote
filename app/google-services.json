@@ -1,22 +1,22 @@
 {
   "project_info": {
-    "project_number": "940657734126",
-    "firebase_url": "https://self-note-aaeba-default-rtdb.asia-southeast1.firebasedatabase.app",
-    "project_id": "self-note-aaeba",
-    "storage_bucket": "self-note-aaeba.appspot.com"
+    "project_number": "412042293025",
+    "firebase_url": "https://self-note-636a2-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "self-note-636a2",
+    "storage_bucket": "self-note-636a2.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:940657734126:android:f54db3cd8f952f64e21eff",
+        "mobilesdk_app_id": "1:412042293025:android:ad7d6dff012d60539f9860",
         "android_client_info": {
-          "package_name": "com.example.selfnote"
+          "package_name": "com.amvarpvtltd.selfnote"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDtvmNpqcTNLiGVEmcJk-egjgGyH8se7bc"
+          "current_key": "AIzaSyB0LnjSYgN12dRUck3kxYbP4TtDp3nU2hs"
         }
       ],
       "services": {

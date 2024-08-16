@@ -1,4 +1,4 @@
-package com.example.selfnote
+package com.amvarpvtltd.selfnote
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

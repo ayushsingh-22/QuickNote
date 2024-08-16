@@ -9,10 +9,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.example.selfnote" />
-                  <option name="mobileSdkAppId" value="1:940657734126:android:f54db3cd8f952f64e21eff" />
-                  <option name="projectId" value="self-note-aaeba" />
-                  <option name="projectNumber" value="940657734126" />
+                  <option name="appId" value="com.amvarpvtltd.selfnote" />
+                  <option name="mobileSdkAppId" value="1:412042293025:android:ad7d6dff012d60539f9860" />
+                  <option name="projectId" value="self-note-636a2" />
+                  <option name="projectNumber" value="412042293025" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

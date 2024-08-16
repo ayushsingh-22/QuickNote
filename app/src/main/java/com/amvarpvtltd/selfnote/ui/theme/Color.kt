@@ -1,4 +1,4 @@
-package com.example.selfnote.ui.theme
+package com.amvarpvtltd.selfnote.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

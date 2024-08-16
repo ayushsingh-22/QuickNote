@@ -1,4 +1,4 @@
-package com.example.selfnote
+package com.amvarpvtltd.selfnote
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.example.selfnote.ui.theme.SelfNoteTheme
+import com.amvarpvtltd.selfnote.ui.theme.SelfNoteTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

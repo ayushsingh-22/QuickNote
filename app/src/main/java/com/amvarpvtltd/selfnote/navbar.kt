@@ -1,4 +1,4 @@
-package com.example.selfnote
+package com.amvarpvtltd.selfnote
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -11,9 +11,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.example.selfnote.design.AddScreen
-import com.example.selfnote.design.NotesScreen
-import com.example.selfnote.design.welcome
+import com.amvarpvtltd.selfnote.design.AddScreen
+import com.amvarpvtltd.selfnote.design.NotesScreen
+import com.amvarpvtltd.selfnote.design.welcome
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.tasks.await

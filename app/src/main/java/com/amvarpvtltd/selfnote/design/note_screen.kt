@@ -1,4 +1,4 @@
-package com.example.selfnote.design
+package com.amvarpvtltd.selfnote.design
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.selfnote.ui.theme.Lobster_Font
+import com.amvarpvtltd.selfnote.ui.theme.Lobster_Font
 import com.google.firebase.database.FirebaseDatabase
 import dataclass
 import fetchNotes

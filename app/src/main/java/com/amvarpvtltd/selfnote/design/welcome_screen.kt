@@ -1,4 +1,4 @@
-package com.example.selfnote.design
+package com.amvarpvtltd.selfnote.design
 
 
 import androidx.compose.foundation.Image
@@ -16,8 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.selfnote.R
-import com.example.selfnote.ui.theme.Lobster_Font
+import com.amvarpvtltd.selfnote.R
+import com.amvarpvtltd.selfnote.ui.theme.Lobster_Font
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 

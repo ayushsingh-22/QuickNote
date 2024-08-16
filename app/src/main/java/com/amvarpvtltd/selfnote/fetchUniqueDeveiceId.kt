@@ -1,4 +1,4 @@
-package com.example.selfnote
+package com.amvarpvtltd.selfnote
 
 import android.annotation.SuppressLint
 import android.content.Context

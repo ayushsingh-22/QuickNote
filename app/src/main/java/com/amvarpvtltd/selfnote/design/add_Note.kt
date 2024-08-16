@@ -1,4 +1,4 @@
-package com.example.selfnote.design
+package com.amvarpvtltd.selfnote.design
 
 import android.util.Log
 import android.widget.Toast
