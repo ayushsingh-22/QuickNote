@@ -39,31 +39,33 @@ fun MyApp() {
 @Composable
 fun NavigationComponent(navController: NavHostController) {
     NavHost(navController = navController, startDestination = "welcome") {
-        composable("welcome") { welcome(navController) }
+        composable("addscreen") { AddScreen(navController, noteId = null) }
 
-        // Handle both adding and updating notes in the AddScreen
+        composable("welcome") {
+            welcome(navController)
+        }
         composable("addscreen/{noteId}") { backStackEntry ->
             val noteId = backStackEntry.arguments?.getString("noteId")
             AddScreen(navController = navController, noteId = noteId)
         }
-        composable("addscreen") { AddScreen(navController, noteId = null) }
-        composable("noteScreen") { NotesScreen(navController) }
-
+        composable("noteScreen") {
+            NotesScreen(navController)
+        }
     }
 }
 
-
 suspend fun checkFirebaseData(): Boolean {
-    // Get a reference to the Firebase Realtime Database
+
     val database: FirebaseDatabase = FirebaseDatabase.getInstance()
     val notesRef: DatabaseReference = database.getReference("notes").child(myGlobalMobileDeviceId)
 
     return try {
-        // Perform the data fetch operation and check if any data exists
+
         val snapshot = notesRef.limitToFirst(1).get().await()
         snapshot.exists()
-    } catch (e: Exception) {
-        // Handle possible errors, such as network issues
+    }
+    catch (e: Exception) {
+
         e.printStackTrace()
         false
     }

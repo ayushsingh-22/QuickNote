@@ -3,8 +3,8 @@
   <component name="deploymentTargetSelector">
     <selectionStates>
       <SelectionState runConfigName="app">
-        <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2024-08-15T18:48:17.745118900Z">
+        <option name="selectionMode" value="DIALOG" />
+        <DropdownSelection timestamp="2024-08-16T12:59:13.956242400Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=R4LBRWGUTKAEAU5X" />

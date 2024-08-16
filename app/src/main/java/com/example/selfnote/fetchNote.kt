@@ -29,19 +29,4 @@ suspend fun fetchNotes(): List<dataclass> {
     }
 }
 
-suspend fun fetchNoteById(noteId: String): dataclass? {
-    val database = FirebaseDatabase.getInstance()
-    val noteRef = database.getReference("notes").child(myGlobalMobileDeviceId).child(noteId)
-    val snapshot = noteRef.get().await()
-    return snapshot.getValue(dataclass::class.java)
-}
-
-fun saveNoteUpdate(noteId: String?, title: String, description: String) {
-    if (noteId == null) return
-    val database = FirebaseDatabase.getInstance()
-    val noteRef = database.getReference("notes").child(myGlobalMobileDeviceId).child(noteId)
-    val updatedNote = dataclass(title = title, description = description, id = noteId)
-    noteRef.setValue(updatedNote)
-
-}
 

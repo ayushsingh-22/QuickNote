@@ -73,5 +73,4 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation (libs.androidx.navigation.compose)
 
-    implementation("androidx.core:core-splashscreen:1.0.0")
 }

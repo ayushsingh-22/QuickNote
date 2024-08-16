@@ -8,14 +8,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -62,18 +60,20 @@ fun NotesScreen(navController: NavHostController) {
     }
 
     Scaffold(topBar = {
-        TopAppBar(
+
+        TopAppBar(modifier = Modifier.padding(top = 30.dp),
             title = {
                 Text(
                     text = "Notes",
                     style = MaterialTheme.typography.titleMedium,
                     fontSize = 60.sp,
                     fontFamily = Lobster_Font,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
                 )
             },
         )
     }, content = { paddingValues ->
+
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
@@ -135,9 +135,10 @@ fun NotesScreen(navController: NavHostController) {
                 },
                 shape = RoundedCornerShape(5.dp),
                 modifier = Modifier
-                    .size(80.dp)
-                    .padding(16.dp)
+                    .size(90.dp, 110.dp)
+                    .padding(bottom =  60.dp, end = 30.dp)
                     .align(Alignment.BottomEnd)
+
             ) {
                 Icon(
                     painter = painterResource(id = android.R.drawable.ic_input_add),
@@ -147,17 +148,22 @@ fun NotesScreen(navController: NavHostController) {
             }
         }
     })
+
 }
 
 @Composable
 fun NoteItem_DESIGN(note: dataclass, onDelete: () -> Unit, onEdit: () -> Unit, isLastData: Boolean = false) {
 
-
     Surface(
         tonalElevation = 5.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 35.dp, start = 10.dp, end = 10.dp, bottom = if (isLastData) 55.dp else 1.dp),
+            .padding(
+                top = 35.dp,
+                start = 10.dp,
+                end = 10.dp,
+                bottom = if (isLastData) 100.dp else 0.dp
+            ),
         shape = RectangleShape,
         shadowElevation = 10.dp,
     ) {

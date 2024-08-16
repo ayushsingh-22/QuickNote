@@ -1,7 +1,6 @@
 package com.example.selfnote.design
 
 import android.util.Log
-import android.widget.StackView
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -15,8 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Alignment.Companion.Bottom
-import androidx.compose.ui.Alignment.Companion.BottomEnd
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -193,7 +190,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     shape = RoundedCornerShape(5.dp),
                     modifier = Modifier
                         .padding(
-                            bottom = 20.dp,
+                            bottom = 60.dp,
                             end = 20.dp
                         ) // Add padding from bottom and right edge
                         .size(50.dp)
