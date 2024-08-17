@@ -55,7 +55,7 @@ fun NotesScreen(navController: NavHostController) {
 
     LaunchedEffect(Unit) {
         scope.launch(Dispatchers.IO) {
-            notesState.value = fetchNotes()
+            notesState.value =  fetchNotes()
         }
     }
 
