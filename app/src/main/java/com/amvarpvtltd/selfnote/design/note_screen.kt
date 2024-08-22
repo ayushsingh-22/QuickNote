@@ -1,5 +1,6 @@
 package com.amvarpvtltd.selfnote.design
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,6 +24,7 @@ import fetchNotes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import myGlobalMobileDeviceId
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +86,12 @@ fun NotesScreen(navController: NavHostController) {
                                             if (keyToDelete != null) {
                                                 val noteRef = notesRef.child(keyToDelete)
                                                 noteRef.removeValue().await()
+
+                                                withContext(Dispatchers.Main) {
+                                                    Toast.makeText(navController.context, "Note deleted successfully", Toast.LENGTH_SHORT).show()
+                                                }
+
+                                                // Refresh notes list
                                                 notesState.value = fetchNotes()
                                             }
                                         }
@@ -92,6 +100,7 @@ fun NotesScreen(navController: NavHostController) {
                                     }
                                 }
                             }
+
                         )
                     }
                 }
