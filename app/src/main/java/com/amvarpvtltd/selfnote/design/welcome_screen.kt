@@ -109,6 +109,7 @@ fun welcome(navController: NavHostController) {
                             modifier = Modifier
                                 .size(70.dp)
                                 .padding(bottom = 30.dp, end = 30.dp)
+                                .offset(y=-20.dp)
                         ) {
                             Icon(
                                 painter = painterResource(id = android.R.drawable.ic_input_add),

@@ -17,10 +17,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.amvarpvtltd.selfnote.ui.theme.Lobster_Font
+import com.google.firebase.database.FirebaseDatabase
 import dataclass
 import fetchNotes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import myGlobalMobileDeviceId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +71,25 @@ fun NotesScreen(navController: NavHostController) {
                             },
                             onDelete = {
                                 scope.launch(Dispatchers.IO) {
+                                    try {
+                                        val database = FirebaseDatabase.getInstance()
+                                        val notesRef = database.getReference("notes").child(myGlobalMobileDeviceId)
 
+                                        val query = notesRef.orderByChild("id").equalTo(note.id)
+                                        val snapshot = query.get().await()
+
+                                        if (snapshot.exists()) {
+                                            val keyToDelete = snapshot.children.first().ref.key
+
+                                            if (keyToDelete != null) {
+                                                val noteRef = notesRef.child(keyToDelete)
+                                                noteRef.removeValue().await()
+                                                notesState.value = fetchNotes()
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
                                 }
                             }
                         )
@@ -97,24 +118,24 @@ fun NotesScreen(navController: NavHostController) {
 }
 
 val cardColors = listOf(
-    Color(0xFFFFCDD2), // Light Red
-    Color(0xFFC8E6C9), // Light Green
-    Color(0xFFBBDEFB), // Light Blue
-    Color(0xFFFFF9C4), // Light Yellow
-    Color(0xFFD1C4E9), // Light Purple
-    Color(0xFFFFE0B2), // Light Orange
-    Color(0xFFE0E0E0)  // Light Grey
+    Color(0xFFFFCDD2),
+    Color(0xFFC8E6C9),
+    Color(0xFFBBDEFB),
+    Color(0xFFFFF9C4),
+    Color(0xFFD1C4E9),
+    Color(0xFFFFE0B2),
+    Color(0xFFE0E0E0),
 )
 
 @Composable
 fun NoteItem_DESIGN(
     note: dataclass,
-    index: Int,           // Add an index parameter
+    index: Int,
     onDelete: () -> Unit,
     onEdit: () -> Unit,
     isLastData: Boolean = false
 ) {
-    // Assign a color based on the index, cycling through the cardColors list
+
     val cardColor = cardColors[index % cardColors.size]
 
     Surface(
