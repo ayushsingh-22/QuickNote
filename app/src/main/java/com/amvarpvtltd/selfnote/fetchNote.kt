@@ -1,13 +1,7 @@
-import android.content.Context
 import android.util.Log
-import androidx.compose.runtime.Composable
-import androidx.navigation.NavHostController
-import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 
 suspend fun fetchNotes(): List<dataclass> {
     val database: FirebaseDatabase = FirebaseDatabase.getInstance()

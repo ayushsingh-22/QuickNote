@@ -60,7 +60,7 @@ fun NotesScreen(navController: NavHostController) {
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
-                        .verticalScroll(rememberScrollState()) // Column inside ScrollView
+                        .verticalScroll(rememberScrollState())
                 ) {
                     notesState.value.forEachIndexed { index, note ->
                         val isLastData = index == notesState.value.lastIndex
@@ -91,7 +91,6 @@ fun NotesScreen(navController: NavHostController) {
                                                     Toast.makeText(navController.context, "Note deleted successfully", Toast.LENGTH_SHORT).show()
                                                 }
 
-                                                // Refresh notes list
                                                 notesState.value = fetchNotes()
                                             }
                                         }

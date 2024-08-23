@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,7 +51,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     LaunchedEffect(noteId) {
         if (noteId != null) {
             try {
-                // Query to find the note by its ID
+
                 val query = notesRef.orderByChild("id").equalTo(noteId)
                 val snapshot = query.get().await()
 
@@ -95,7 +96,6 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     .child(myGlobalMobileDeviceId) // Create subdirectory
 
                 if (noteId == null) {
-                    // New note: Push a new entry to the database under the device ID subdirectory
                     deviceIdRef.push()
                         .setValue(note)
                         .await() // Wait for the operation to complete
@@ -108,7 +108,6 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     val keyToUpdate = query.get().await().children.firstOrNull()?.key
                     note.id = noteId
 
-                    // Update existing note under the device ID subdirectory
                     deviceIdRef.child(keyToUpdate!!)
                         .setValue(note)
                         .await() // Wait for the operation to complete
@@ -118,7 +117,6 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     }
                 }
 
-                // Navigate to noteScreen after saving/updating
                 withContext(Dispatchers.Main) {
                     navController.navigate("noteScreen")
                 }
@@ -157,15 +155,23 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
             shape = RectangleShape,
             modifier = Modifier
                 .fillMaxWidth(),
-            label = {
-                Text(
-                    text = "Title",
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
+            placeholder = {
+                if (title.isEmpty()) {
+                    Text(
+                        text = "Title",
+                        fontSize = 25.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            },
+            textStyle = LocalTextStyle.current.copy(
+                fontWeight = if (title.isEmpty()) FontWeight.Normal else FontWeight.ExtraBold,
+                fontSize = 25.sp
+            )
         )
+
         Surface() {
+
             TextField(
                 value = description,
                 onValueChange = { description = it },
@@ -173,13 +179,21 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                 modifier = Modifier
                     .fillMaxSize()
                     .height(150.dp),
-                label = {
-                    Text(
-                        text = "Description",
-                        fontSize = 25.sp,
-                    )
-                }
+                placeholder = {
+                    if (description.isEmpty()) {
+                        Text(
+                            text = "Description",
+                            fontSize = 25.sp
+                        )
+                    }
+                },
+                textStyle = LocalTextStyle.current.copy(
+                    fontWeight = if (description.isEmpty()) {FontWeight.Normal}
+                    else {FontWeight.SemiBold},
+                    fontSize = 20.sp
+                )
             )
+
             Box(
                 contentAlignment = Alignment.BottomEnd,
                 modifier = Modifier
@@ -192,13 +206,13 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         .padding(
                             bottom = 60.dp,
                             end = 20.dp
-                        ) // Add padding from bottom and right edge
+                        )
                         .size(50.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = android.R.drawable.ic_menu_save),
                         contentDescription = "Add Note",
-                        tint = Color.Black
+                        tint = Color.Red
                     )
                 }
             }
