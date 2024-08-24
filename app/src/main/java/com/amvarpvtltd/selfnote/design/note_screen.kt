@@ -146,7 +146,7 @@ fun NoteItem_DESIGN(
 
     val cardColor = cardColors[index % cardColors.size]
 
-    Surface(
+    Surface(onClick = {},
         color = cardColor,
         tonalElevation = 5.dp,
         modifier = Modifier

@@ -170,7 +170,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
             )
         )
 
-        Surface() {
+        Surface {
 
             TextField(
                 value = description,
