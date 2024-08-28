@@ -44,10 +44,12 @@ fun NavigationComponent(navController: NavHostController) {
         composable("welcome") {
             welcome(navController)
         }
+
         composable("addscreen/{noteId}") { backStackEntry ->
             val noteId = backStackEntry.arguments?.getString("noteId")
             AddScreen(navController = navController, noteId = noteId)
         }
+
         composable("noteScreen") {
             NotesScreen(navController)
         }
