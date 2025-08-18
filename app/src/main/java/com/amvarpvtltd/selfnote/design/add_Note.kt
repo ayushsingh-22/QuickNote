@@ -109,10 +109,12 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     val keyToUpdate = snapshot.children.first().key
                     if (keyToUpdate != null) {
                         val noteSnapshot = notesRef.child(keyToUpdate).get().await()
-                        val note = noteSnapshot.getValue(dataclass::class.java)
-                        note?.let {
-                            title = it.title
-                            description = it.description
+                        val encryptedNote = noteSnapshot.getValue(dataclass::class.java)
+                        encryptedNote?.let {
+                            // Decrypt the note data before displaying
+                            val decryptedNote = dataclass.fromEncryptedData(it)
+                            title = decryptedNote.title
+                            description = decryptedNote.description
                         }
                     }
                 }
@@ -147,7 +149,9 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                 val deviceIdRef = database.getReference("notes").child(myGlobalMobileDeviceId)
 
                 if (noteId == null) {
-                    deviceIdRef.push().setValue(note).await()
+                    // Save encrypted data to Firebase
+                    val encryptedNote = note.toEncryptedData()
+                    deviceIdRef.push().setValue(encryptedNote).await()
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, "✅ Note saved successfully!", Toast.LENGTH_SHORT).show()
                     }
@@ -155,7 +159,9 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     val query = notesRef.orderByChild("id").equalTo(noteId)
                     val keyToUpdate = query.get().await().children.firstOrNull()?.key
                     note.id = noteId
-                    deviceIdRef.child(keyToUpdate!!).setValue(note).await()
+                    // Save encrypted data to Firebase
+                    val encryptedNote = note.toEncryptedData()
+                    deviceIdRef.child(keyToUpdate!!).setValue(encryptedNote).await()
                     withContext(Dispatchers.Main) {
                         Toast.makeText(context, "✅ Note updated successfully!", Toast.LENGTH_SHORT).show()
                     }
