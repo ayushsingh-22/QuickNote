@@ -13,7 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.amvarpvtltd.selfnote.design.AddScreen
 import com.amvarpvtltd.selfnote.design.NotesScreen
-import com.amvarpvtltd.selfnote.design.welcome
+import com.amvarpvtltd.selfnote.design.welcomeScreen
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.tasks.await
@@ -42,7 +42,7 @@ fun NavigationComponent(navController: NavHostController) {
         composable("addscreen") { AddScreen(navController, noteId = null) }
 
         composable("welcome") {
-            welcome(navController)
+            welcomeScreen(navController)
         }
 
         composable("addscreen/{noteId}") { backStackEntry ->

@@ -7,4 +7,39 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- NoteTheme Colors -->
+    <color name="primary">#FF6366F1</color>
+    <color name="primary_variant">#FF4F46E5</color>
+    <color name="secondary">#FF06B6D4</color>
+    <color name="secondary_variant">#FF0891B2</color>
+    <color name="background">#FFFAFAFA</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="surface_variant">#FFF1F5F9</color>
+    <color name="on_primary">#FFFFFFFF</color>
+    <color name="on_background">#FF1E293B</color>
+    <color name="on_surface">#FF334155</color>
+    <color name="on_surface_variant">#FF64748B</color>
+    <color name="success">#FF10B981</color>
+    <color name="warning">#FFF59E0B</color>
+    <color name="error">#FFEF4444</color>
+    <color name="error_container">#FFFEE2E2</color>
+
+    <!-- Note Card Colors -->
+    <color name="note_card_bg_blue">#FFF0F9FF</color>
+    <color name="note_card_accent_blue">#FF0EA5E9</color>
+    <color name="note_card_bg_green">#FFF0FDF4</color>
+    <color name="note_card_accent_green">#FF10B981</color>
+    <color name="note_card_bg_amber">#FFFEF3C7</color>
+    <color name="note_card_accent_amber">#FFF59E0B</color>
+    <color name="note_card_bg_pink">#FFFDF2F8</color>
+    <color name="note_card_accent_pink">#FFEC4899</color>
+    <color name="note_card_bg_purple">#FFF3E8FF</color>
+    <color name="note_card_accent_purple">#FF8B5CF6</color>
+    <color name="note_card_bg_emerald">#FFECFDF5</color>
+    <color name="note_card_accent_emerald">#FF059669</color>
+    <color name="note_card_bg_rose">#FFFFF1F2</color>
+    <color name="note_card_accent_rose">#FFE11D48</color>
+    <color name="note_card_bg_indigo">#FFF0F4FF</color>
+    <color name="note_card_accent_indigo">#FF6366F1</color>
 </resources>
