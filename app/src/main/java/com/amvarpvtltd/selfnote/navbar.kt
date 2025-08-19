@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import com.amvarpvtltd.selfnote.design.AddScreen
 import com.amvarpvtltd.selfnote.design.NotesScreen
 import com.amvarpvtltd.selfnote.design.welcomeScreen
+import com.amvarpvtltd.selfnote.design.ViewNoteScreen
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.tasks.await
@@ -48,6 +49,11 @@ fun NavigationComponent(navController: NavHostController) {
         composable("addscreen/{noteId}") { backStackEntry ->
             val noteId = backStackEntry.arguments?.getString("noteId")
             AddScreen(navController = navController, noteId = noteId)
+        }
+
+        composable("viewnote/{noteId}") { backStackEntry ->
+            val noteId = backStackEntry.arguments?.getString("noteId")
+            ViewNoteScreen(navController = navController, noteId = noteId)
         }
 
         composable("noteScreen") {

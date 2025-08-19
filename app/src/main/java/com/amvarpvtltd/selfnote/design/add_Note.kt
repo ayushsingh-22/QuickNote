@@ -1,6 +1,7 @@
 package com.amvarpvtltd.selfnote.design
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -36,14 +37,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.google.firebase.database.FirebaseDatabase
-import dataclass
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import myGlobalMobileDeviceId
 import androidx.compose.material3.ButtonDefaults
+import com.amvarpvtltd.selfnote.repository.NoteRepository
+import com.amvarpvtltd.selfnote.utils.ValidationUtils
+import com.amvarpvtltd.selfnote.utils.UIUtils
+import com.amvarpvtltd.selfnote.utils.Constants
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,47 +54,33 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     var isLoading by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showBackDialog by remember { mutableStateOf(false) }
     var titleFocused by remember { mutableStateOf(false) }
     var descriptionFocused by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-    val database = FirebaseDatabase.getInstance()
-    val notesRef = database.getReference("notes").child(myGlobalMobileDeviceId)
+    val noteRepository = remember { NoteRepository() }
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
     val titleFocusRequester = remember { FocusRequester() }
     val hapticFeedback = LocalHapticFeedback.current
 
     val isEditing = noteId != null
-    val canSave = title.trim().length >= 5 || description.trim().length >= 5
+    val canSave = ValidationUtils.canSaveNote(title, description)
+    val hasContent = title.trim().isNotEmpty() || description.trim().isNotEmpty()
 
-    // Animated colors and values
-    val animatedSaveColor by animateColorAsState(
-        targetValue = if (canSave) NoteTheme.Primary else NoteTheme.OnSurfaceVariant,
-        animationSpec = tween(300),
-        label = "save_color"
-    )
-
-    val titleProgress = (title.length / 50f).coerceAtMost(1f)
-    val descriptionProgress = (description.length / 1000f).coerceAtMost(1f)
+    val titleProgress = UIUtils.calculateProgress(title.length, Constants.TITLE_MAX_LENGTH)
+    val descriptionProgress = UIUtils.calculateProgress(description.length, Constants.DESCRIPTION_MAX_LENGTH)
 
     val titleCountColor by animateColorAsState(
-        targetValue = when {
-            title.length >= 5 -> NoteTheme.Success
-            title.length >= 3 -> NoteTheme.Warning
-            else -> NoteTheme.Error
-        },
-        animationSpec = tween(300),
+        targetValue = UIUtils.getProgressColor(title.length),
+        animationSpec = UIUtils.getColorAnimationSpec(),
         label = "title_count_color"
     )
 
     val descCountColor by animateColorAsState(
-        targetValue = when {
-            description.length >= 5 -> NoteTheme.Success
-            description.length >= 3 -> NoteTheme.Warning
-            else -> NoteTheme.Error
-        },
-        animationSpec = tween(300),
+        targetValue = UIUtils.getProgressColor(description.length),
+        animationSpec = UIUtils.getColorAnimationSpec(),
         label = "desc_count_color"
     )
 
@@ -102,26 +89,17 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
         if (noteId != null) {
             isLoading = true
             try {
-                val query = notesRef.orderByChild("id").equalTo(noteId)
-                val snapshot = query.get().await()
-
-                if (snapshot.exists()) {
-                    val keyToUpdate = snapshot.children.first().key
-                    if (keyToUpdate != null) {
-                        val noteSnapshot = notesRef.child(keyToUpdate).get().await()
-                        val encryptedNote = noteSnapshot.getValue(dataclass::class.java)
-                        encryptedNote?.let {
-                            // Decrypt the note data before displaying
-                            val decryptedNote = dataclass.fromEncryptedData(it)
-                            title = decryptedNote.title
-                            description = decryptedNote.description
-                        }
+                val result = noteRepository.loadNote(noteId)
+                if (result.isSuccess) {
+                    val note = result.getOrNull()
+                    note?.let {
+                        title = it.title
+                        description = it.description
                     }
-                }
-            } catch (e: Exception) {
-                Log.e("Firebase", "Error fetching note", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "❌ Error loading note", Toast.LENGTH_LONG).show()
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, Constants.ERROR_LOADING_MESSAGE, Toast.LENGTH_LONG).show()
+                    }
                 }
             } finally {
                 isLoading = false
@@ -132,48 +110,18 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     // Save note function
     fun saveNote() {
         if (!canSave) {
-            Toast.makeText(
-                context,
-                "⚠️ Title or description must be at least 5 characters",
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(context, Constants.VALIDATION_WARNING_MESSAGE, Toast.LENGTH_LONG).show()
             return
         }
 
         isSaving = true
-        val note = dataclass(title = title.trim(), description = description.trim())
-        note.mymobiledeviceid = myGlobalMobileDeviceId
-
         scope.launch(Dispatchers.IO) {
             try {
-                val deviceIdRef = database.getReference("notes").child(myGlobalMobileDeviceId)
-
-                if (noteId == null) {
-                    // Save encrypted data to Firebase
-                    val encryptedNote = note.toEncryptedData()
-                    deviceIdRef.push().setValue(encryptedNote).await()
+                val result = noteRepository.saveNote(title, description, noteId, context)
+                if (result.isSuccess) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "✅ Note saved successfully!", Toast.LENGTH_SHORT).show()
+                        navController.navigate("noteScreen")
                     }
-                } else {
-                    val query = notesRef.orderByChild("id").equalTo(noteId)
-                    val keyToUpdate = query.get().await().children.firstOrNull()?.key
-                    note.id = noteId
-                    // Save encrypted data to Firebase
-                    val encryptedNote = note.toEncryptedData()
-                    deviceIdRef.child(keyToUpdate!!).setValue(encryptedNote).await()
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "✅ Note updated successfully!", Toast.LENGTH_SHORT).show()
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    navController.navigate("noteScreen")
-                }
-            } catch (e: Exception) {
-                Log.e("Firebase", "Error saving note", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "❌ Error saving note", Toast.LENGTH_LONG).show()
                 }
             } finally {
                 withContext(Dispatchers.Main) {
@@ -189,20 +137,14 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
 
         scope.launch(Dispatchers.IO) {
             try {
-                val query = notesRef.orderByChild("id").equalTo(noteId)
-                val keyToDelete = query.get().await().children.firstOrNull()?.key
-
-                if (keyToDelete != null) {
-                    notesRef.child(keyToDelete).removeValue().await()
+                val result = noteRepository.deleteNote(noteId, context)
+                if (result.isSuccess) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "🗑️ Note deleted successfully", Toast.LENGTH_SHORT).show()
                         navController.navigate("noteScreen")
                     }
                 }
-            } catch (_: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "❌ Error deleting note", Toast.LENGTH_LONG).show()
-                }
+            } catch (e: Exception) {
+                Log.e("AddScreen", "Error in deleteNote", e)
             }
         }
     }
@@ -263,14 +205,14 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         colors = CardDefaults.cardColors(
                             containerColor = NoteTheme.ErrorContainer.copy(alpha = 0.3f)
                         ),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
                     ) {
                         Text(
                             text = "\"$title\"",
                             style = MaterialTheme.typography.bodyMedium,
                             color = NoteTheme.OnSurface,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(12.dp)
+                            modifier = Modifier.padding(Constants.CORNER_RADIUS_SMALL.dp)
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -293,7 +235,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         containerColor = NoteTheme.Error,
                         contentColor = NoteTheme.OnPrimary
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
                 ) {
                     Icon(
                         Icons.Outlined.Delete,
@@ -310,18 +252,104 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = NoteTheme.OnSurfaceVariant
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
                 ) {
                     Text("Cancel", fontWeight = FontWeight.Medium)
                 }
             },
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(Constants.CORNER_RADIUS_XL.dp),
+            containerColor = NoteTheme.Surface
+        )
+    }
+
+    // Back confirmation dialog
+    if (showBackDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackDialog = false },
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    NoteTheme.Warning.copy(alpha = 0.2f),
+                                    NoteTheme.Warning.copy(alpha = 0.05f)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.Warning,
+                        contentDescription = null,
+                        tint = NoteTheme.Warning,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    "Discard Changes?",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = NoteTheme.OnSurface
+                )
+            },
+            text = {
+                Text(
+                    "You have unsaved changes. Are you sure you want to go back? Your changes will be lost.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = NoteTheme.OnSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showBackDialog = false
+                        navController.navigateUp()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NoteTheme.Warning,
+                        contentColor = NoteTheme.OnPrimary
+                    ),
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.ExitToApp,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Discard", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showBackDialog = false },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = NoteTheme.OnSurfaceVariant
+                    ),
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
+                ) {
+                    Text("Keep Editing", fontWeight = FontWeight.Medium)
+                }
+            },
+            shape = RoundedCornerShape(Constants.CORNER_RADIUS_XL.dp),
             containerColor = NoteTheme.Surface
         )
     }
 
     Scaffold(
-        modifier = Modifier.background(backgroundBrush),
+        modifier = Modifier.background(Brush.verticalGradient(
+            colors = listOf(
+                NoteTheme.Background,
+                NoteTheme.SurfaceVariant.copy(alpha = 0.3f),
+                NoteTheme.Background
+            )
+        )),
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
@@ -337,16 +365,49 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         )
 
                         if (isLoading) {
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
                             CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp),
                                 strokeWidth = 2.dp,
                                 color = NoteTheme.Primary
                             )
                         }
                     }
                 },
-
+                navigationIcon = {
+                    Card(
+                        modifier = Modifier
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                // Handle back navigation with confirmation
+                                if (hasContent && !isEditing) {
+                                    showBackDialog = true
+                                } else {
+                                    navController.navigateUp()
+                                }
+                            },
+                        shape = CircleShape,
+                        colors = CardDefaults.cardColors(
+                            containerColor = NoteTheme.Primary.copy(alpha = 0.1f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // Removed shadow
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(Constants.PADDING_SMALL.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = NoteTheme.Primary,
+                                modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
+                            )
+                        }
+                    }
+                },
                 actions = {
                     if (isEditing) {
                         Card(
@@ -365,14 +426,14 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                         ) {
                             Box(
-                                modifier = Modifier.padding(8.dp),
+                                modifier = Modifier.padding(Constants.PADDING_SMALL.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     Icons.Outlined.Delete,
                                     contentDescription = "Delete",
                                     tint = NoteTheme.Error,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
                                 )
                             }
                         }
@@ -384,19 +445,18 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
             )
         },
         floatingActionButton = {
+            // Only show save button when there's no error message and not loading
             AnimatedVisibility(
-                visible = !isLoading,
+                visible = !isLoading && canSave,
                 enter = scaleIn(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy
-                    )
+                    animationSpec = UIUtils.getSpringAnimationSpec()
                 ) + fadeIn(),
                 exit = scaleOut() + fadeOut()
             ) {
                 var fabPressed by remember { mutableStateOf(false) }
                 val fabScale by animateFloatAsState(
                     targetValue = if (fabPressed) 0.9f else 1f,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                    animationSpec = UIUtils.getSpringAnimationSpec(),
                     label = "fab_scale"
                 )
 
@@ -408,10 +468,10 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     },
                     modifier = Modifier
                         .scale(fabScale)
-                        .shadow(12.dp, RoundedCornerShape(20.dp)),
-                    containerColor = animatedSaveColor,
+                        .shadow(Constants.CORNER_RADIUS_SMALL.dp, RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)),
+                    containerColor = NoteTheme.Primary,
                     contentColor = NoteTheme.OnPrimary,
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
                     elevation = FloatingActionButtonDefaults.elevation(
                         defaultElevation = 0.dp,
                         pressedElevation = 0.dp
@@ -419,11 +479,11 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                 ) {
                     if (isSaving) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp),
                             strokeWidth = 2.dp,
                             color = NoteTheme.OnPrimary
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
                         Text(
                             "Saving...",
                             fontWeight = FontWeight.Bold,
@@ -433,9 +493,9 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         Icon(
                             Icons.Outlined.Check,
                             contentDescription = "Save",
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
                         Text(
                             if (isEditing) "Update Note" else "Save Note",
                             fontWeight = FontWeight.Bold,
@@ -446,7 +506,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
 
                 LaunchedEffect(fabPressed) {
                     if (fabPressed) {
-                        kotlinx.coroutines.delay(150)
+                        kotlinx.coroutines.delay(Constants.SPRING_ANIMATION_DELAY.toLong())
                         fabPressed = false
                     }
                 }
@@ -461,19 +521,19 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                 contentAlignment = Alignment.Center
             ) {
                 Card(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
                     colors = CardDefaults.cardColors(containerColor = NoteTheme.Surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(32.dp)
+                        modifier = Modifier.padding(Constants.PADDING_XL.dp)
                     ) {
                         CircularProgressIndicator(
                             color = NoteTheme.Primary,
                             strokeWidth = 4.dp
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
                         Text(
                             "Loading note...",
                             style = MaterialTheme.typography.titleMedium,
@@ -489,24 +549,21 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     .fillMaxSize()
                     .background(backgroundBrush)
                     .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                    .padding(Constants.PADDING_MEDIUM.dp),
+                verticalArrangement = Arrangement.spacedBy(Constants.CORNER_RADIUS_LARGE.dp)
             ) {
                 // Title Section
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .animateContentSize(),
-                    elevation = CardDefaults.cardElevation(
-                        defaultElevation = if (titleFocused) 8.dp else 4.dp
-                    ),
                     colors = CardDefaults.cardColors(
                         containerColor = NoteTheme.Surface
                     ),
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(20.dp)
+                        modifier = Modifier.padding(Constants.CORNER_RADIUS_LARGE.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -520,9 +577,9 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                     imageVector = Icons.Outlined.Title,
                                     contentDescription = null,
                                     tint = NoteTheme.Primary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
                                 Text(
                                     text = "Title",
                                     style = MaterialTheme.typography.titleMedium,
@@ -537,7 +594,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                 // Progress indicator
                                 Box(
                                     modifier = Modifier
-                                        .size(24.dp)
+                                        .size(Constants.PROGRESS_INDICATOR_SIZE.dp)
                                         .background(
                                             color = titleCountColor.copy(alpha = 0.1f),
                                             shape = CircleShape
@@ -552,10 +609,10 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
 
                                 Text(
-                                    text = "${title.length}/50",
+                                    text = UIUtils.formatCharacterCount(title.length, Constants.TITLE_MAX_LENGTH),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = titleCountColor,
                                     fontWeight = FontWeight.Medium
@@ -563,11 +620,11 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
 
                         OutlinedTextField(
                             value = title,
-                            onValueChange = { if (it.length <= 50) title = it },
+                            onValueChange = { if (it.length <= Constants.TITLE_MAX_LENGTH) title = it },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(titleFocusRequester)
@@ -588,28 +645,28 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                 focusedTextColor = Color.Black,
                                 unfocusedTextColor = Color.Black
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
                         )
 
                         // Title requirements indicator
                         AnimatedVisibility(
-                            visible = title.length < 5,
+                            visible = !ValidationUtils.isValidTitle(title),
                             enter = slideInVertically() + fadeIn(),
                             exit = slideOutVertically() + fadeOut()
                         ) {
                             Row(
-                                modifier = Modifier.padding(top = 8.dp),
+                                modifier = Modifier.padding(top = Constants.PADDING_SMALL.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Info,
                                     contentDescription = null,
                                     tint = titleCountColor,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(Constants.ICON_SIZE_SMALL.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Title must be at least 5 characters",
+                                    text = ValidationUtils.getTitleValidationMessage(),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = titleCountColor,
                                     fontWeight = FontWeight.Medium
@@ -625,16 +682,13 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         .fillMaxWidth()
                         .weight(1f)
                         .animateContentSize(),
-                    elevation = CardDefaults.cardElevation(
-                        defaultElevation = if (descriptionFocused) 8.dp else 4.dp
-                    ),
                     colors = CardDefaults.cardColors(
                         containerColor = NoteTheme.Surface
                     ),
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(20.dp)
+                        modifier = Modifier.padding(Constants.CORNER_RADIUS_LARGE.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -648,9 +702,9 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                     imageVector = Icons.Outlined.Description,
                                     contentDescription = null,
                                     tint = NoteTheme.Secondary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
 
                                 Text(
                                     text = "Description",
@@ -666,7 +720,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                 // Progress indicator
                                 Box(
                                     modifier = Modifier
-                                        .size(24.dp)
+                                        .size(Constants.PROGRESS_INDICATOR_SIZE.dp)
                                         .background(
                                             color = descCountColor.copy(alpha = 0.1f),
                                             shape = CircleShape
@@ -681,10 +735,10 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
 
                                 Text(
-                                    text = "${description.length}/1000",
+                                    text = UIUtils.formatCharacterCount(description.length, Constants.DESCRIPTION_MAX_LENGTH),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = descCountColor,
                                     fontWeight = FontWeight.Medium
@@ -692,11 +746,11 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
 
                         OutlinedTextField(
                             value = description,
-                            onValueChange = { if (it.length <= 1000) description = it },
+                            onValueChange = { if (it.length <= Constants.DESCRIPTION_MAX_LENGTH) description = it },
                             modifier = Modifier
                                 .fillMaxSize()
                                 .onFocusChanged { descriptionFocused = it.isFocused },
@@ -718,12 +772,12 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                             keyboardActions = KeyboardActions(
                                 onDone = { keyboardController?.hide() }
                             ),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
                         )
                     }
                 }
 
-                // Save requirements indicator
+                // Save requirements indicator - This ensures save button doesn't overlap
                 AnimatedVisibility(
                     visible = !canSave,
                     enter = slideInVertically() + fadeIn(),
@@ -733,22 +787,22 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         colors = CardDefaults.cardColors(
                             containerColor = NoteTheme.Warning.copy(alpha = 0.1f)
                         ),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(Constants.CORNER_RADIUS_MEDIUM.dp),
                         border = BorderStroke(1.dp, NoteTheme.Warning.copy(alpha = 0.3f))
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(Constants.PADDING_MEDIUM.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Warning,
                                 contentDescription = null,
                                 tint = NoteTheme.Warning,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
                             Text(
-                                text = "Either title or description must be at least 5 characters to save",
+                                text = ValidationUtils.getSaveValidationMessage(),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = NoteTheme.Warning,
                                 fontWeight = FontWeight.Medium
@@ -763,8 +817,18 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     // Auto-focus title when creating new note
     LaunchedEffect(Unit) {
         if (!isEditing && !isLoading) {
-            kotlinx.coroutines.delay(300)
+            kotlinx.coroutines.delay(Constants.LOADING_DELAY)
             titleFocusRequester.requestFocus()
+        }
+    }
+
+    // Handle device back button
+    BackHandler(enabled = true) {
+        // Handle back navigation with confirmation for device back button
+        if (hasContent && !isEditing) {
+            showBackDialog = true
+        } else {
+            navController.navigateUp()
         }
     }
 }

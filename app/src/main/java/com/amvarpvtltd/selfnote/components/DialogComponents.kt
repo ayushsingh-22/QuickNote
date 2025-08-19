@@ -1,0 +1,331 @@
+package com.amvarpvtltd.selfnote.components
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.amvarpvtltd.selfnote.design.NoteTheme
+import com.amvarpvtltd.selfnote.utils.Constants
+
+@Composable
+fun DeleteConfirmationDialog(
+    showDialog: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    title: String,
+    message: String = "Are you sure you want to delete this item?"
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    NoteTheme.Error.copy(alpha = 0.2f),
+                                    NoteTheme.Error.copy(alpha = 0.05f)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.DeleteOutline,
+                        contentDescription = null,
+                        tint = NoteTheme.Error,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    "Delete Note?",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = NoteTheme.OnSurface
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = NoteTheme.OnSurfaceVariant
+                    )
+                    if (title.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = NoteTheme.ErrorContainer.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
+                        ) {
+                            Text(
+                                text = "\"$title\"",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = NoteTheme.OnSurface,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(Constants.CORNER_RADIUS_SMALL.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "This action cannot be undone.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NoteTheme.Error,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onConfirm()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NoteTheme.Error,
+                        contentColor = NoteTheme.OnPrimary
+                    ),
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
+                ) {
+                    Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Delete", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = NoteTheme.OnSurfaceVariant
+                    ),
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
+                ) {
+                    Text("Cancel", fontWeight = FontWeight.Medium)
+                }
+            },
+            shape = RoundedCornerShape(Constants.CORNER_RADIUS_XL.dp),
+            containerColor = NoteTheme.Surface
+        )
+    }
+}
+
+@Composable
+fun LoadingCard(
+    message: String = "Loading...",
+    subMessage: String = "Please wait a moment"
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
+            colors = CardDefaults.cardColors(containerColor = NoteTheme.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(Constants.PADDING_XL.dp)
+            ) {
+                CircularProgressIndicator(
+                    color = NoteTheme.Primary,
+                    strokeWidth = 4.dp
+                )
+                Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
+                Text(
+                    message,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = NoteTheme.OnSurface,
+                    fontWeight = FontWeight.Medium
+                )
+                if (subMessage.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        subMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = NoteTheme.OnSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ValidationWarningCard(
+    visible: Boolean,
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically() + fadeIn(),
+        exit = slideOutVertically() + fadeOut(),
+        modifier = modifier
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = NoteTheme.Warning.copy(alpha = 0.1f)
+            ),
+            shape = RoundedCornerShape(Constants.CORNER_RADIUS_MEDIUM.dp),
+            border = BorderStroke(1.dp, NoteTheme.Warning.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier.padding(Constants.PADDING_MEDIUM.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Warning,
+                    contentDescription = null,
+                    tint = NoteTheme.Warning,
+                    modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
+                )
+                Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = NoteTheme.Warning,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyStateCard(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    buttonText: String,
+    onButtonClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = NoteTheme.Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            val infiniteTransition = rememberInfiniteTransition(label = "empty_animation")
+            val scale by infiniteTransition.animateFloat(
+                initialValue = 0.9f,
+                targetValue = 1.1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(2000, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "empty_scale"
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .scale(scale)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                NoteTheme.Primary.copy(alpha = 0.1f),
+                                NoteTheme.Primary.copy(alpha = 0.05f),
+                                Color.Transparent
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(60.dp),
+                    tint = NoteTheme.Primary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = NoteTheme.OnSurface,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyLarge,
+                color = NoteTheme.OnSurfaceVariant,
+                textAlign = TextAlign.Center,
+                lineHeight = 24.sp
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = onButtonClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NoteTheme.Primary,
+                    contentColor = NoteTheme.OnPrimary
+                ),
+                shape = RoundedCornerShape(16.dp),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 4.dp,
+                    pressedElevation = 8.dp
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    buttonText,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
