@@ -151,96 +151,200 @@ private fun RefreshButton(onRefresh: () -> Unit, isLoading: Boolean) {
 }
 
 @Composable
-fun AnimatedFloatingActionButton(
-    onClick: () -> Unit,
-    icon: ImageVector = Icons.Default.Add,
-    text: String? = null,
+fun NoteScreenBackground(
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        NoteTheme.Background,
+                        NoteTheme.SurfaceVariant.copy(alpha = 0.3f),
+                        NoteTheme.Background
+                    )
+                )
+            )
+    ) {
+        content()
+    }
+}
+
+@Composable
+fun LoadingCard(
+    title: String,
+    description: String,
     modifier: Modifier = Modifier
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.9f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "fab_scale"
-    )
-
-    val shadowElevation by animateDpAsState(
-        targetValue = if (isPressed) 4.dp else 12.dp,
-        animationSpec = spring(),
-        label = "fab_elevation"
-    )
-
-    if (text != null) {
-        ExtendedFloatingActionButton(
-            onClick = {
-                isPressed = true
-                onClick()
-            },
-            modifier = modifier
-                .scale(scale)
-                .shadow(shadowElevation, RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)),
-            containerColor = NoteTheme.Primary,
-            contentColor = NoteTheme.OnPrimary,
-            shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
+            colors = CardDefaults.cardColors(containerColor = NoteTheme.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(28.dp))
-            if (text.isNotEmpty()) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text, fontWeight = FontWeight.Bold)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(Constants.PADDING_XL.dp)
+            ) {
+                CircularProgressIndicator(
+                    color = NoteTheme.Primary,
+                    strokeWidth = 4.dp
+                )
+                Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = NoteTheme.OnSurface,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = NoteTheme.OnSurfaceVariant,
+                    fontWeight = FontWeight.Normal
+                )
             }
-        }
-    } else {
-        FloatingActionButton(
-            onClick = {
-                isPressed = true
-                onClick()
-            },
-            modifier = modifier
-                .size(64.dp)
-                .scale(scale)
-                .shadow(shadowElevation, CircleShape),
-            shape = CircleShape,
-            containerColor = NoteTheme.Primary,
-            contentColor = NoteTheme.OnPrimary
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(28.dp))
-        }
-    }
-
-    LaunchedEffect(isPressed) {
-        if (isPressed) {
-            delay(150)
-            isPressed = false
         }
     }
 }
 
 @Composable
-fun NoteScreenBackground(content: @Composable () -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition(label = "background")
-    val animatedOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(15000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "gradient"
-    )
-
-    val backgroundBrush = Brush.verticalGradient(
-        colors = listOf(
-            NoteTheme.Background,
-            NoteTheme.SurfaceVariant.copy(alpha = 0.3f + animatedOffset * 0.1f),
-            NoteTheme.Background
-        )
-    )
-
+fun EmptyStateCard(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    buttonText: String,
+    onButtonClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundBrush)
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        content()
+        Card(
+            shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
+            colors = CardDefaults.cardColors(containerColor = NoteTheme.Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            modifier = Modifier.padding(Constants.PADDING_LARGE.dp)
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(Constants.PADDING_XL.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    NoteTheme.Primary.copy(alpha = 0.2f),
+                                    NoteTheme.Primary.copy(alpha = 0.05f)
+                                )
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = NoteTheme.Primary,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(Constants.PADDING_LARGE.dp))
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = NoteTheme.OnSurface,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(Constants.PADDING_SMALL.dp))
+
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = NoteTheme.OnSurfaceVariant,
+                    fontWeight = FontWeight.Normal
+                )
+
+                Spacer(modifier = Modifier.height(Constants.PADDING_LARGE.dp))
+
+                Button(
+                    onClick = onButtonClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NoteTheme.Primary,
+                        contentColor = NoteTheme.OnPrimary
+                    ),
+                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_MEDIUM.dp)
+                ) {
+                    Text(
+                        text = buttonText,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AnimatedFloatingActionButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var fabPressed by remember { mutableStateOf(false) }
+    val hapticFeedback = LocalHapticFeedback.current
+
+    val fabScale by animateFloatAsState(
+        targetValue = if (fabPressed) 0.9f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "fab_scale"
+    )
+
+    ExtendedFloatingActionButton(
+        onClick = {
+            fabPressed = true
+            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+            onClick()
+        },
+        modifier = modifier
+            .scale(fabScale)
+            .shadow(8.dp, RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)),
+        containerColor = NoteTheme.Primary,
+        contentColor = NoteTheme.OnPrimary,
+        shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
+        elevation = FloatingActionButtonDefaults.elevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp
+        )
+    ) {
+        Icon(
+            Icons.Outlined.Add,
+            contentDescription = "Add Note",
+            modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            "New Note",
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium
+        )
+    }
+
+    LaunchedEffect(fabPressed) {
+        if (fabPressed) {
+            delay(Constants.SPRING_ANIMATION_DELAY.toLong())
+            fabPressed = false
+        }
     }
 }

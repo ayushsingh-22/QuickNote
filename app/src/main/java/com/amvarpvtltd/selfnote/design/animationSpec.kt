@@ -1,24 +1,56 @@
 package com.amvarpvtltd.selfnote.design
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.Color
+import androidx.compose.animation.core.*
+import androidx.compose.ui.unit.dp
 
-object NoteTheme {
-    var Primary by mutableStateOf(Color(0xFF6366F1))
-    var PrimaryVariant by mutableStateOf(Color(0xFF4F46E5))
-    var Secondary by mutableStateOf(Color(0xFF06B6D4))
-    var SecondaryVariant by mutableStateOf(Color(0xFF0891B2))
-    var Background by mutableStateOf(Color(0xFFFAFAFA))
-    var Surface by mutableStateOf(Color(0xFFFFFFFF))
-    var SurfaceVariant by mutableStateOf(Color(0xFFF1F5F9))
-    var OnPrimary by mutableStateOf(Color(0xFFFFFFFF))
-    var OnBackground by mutableStateOf(Color(0xFF1E293B))
-    var OnSurface by mutableStateOf(Color(0xFF334155))
-    var OnSurfaceVariant by mutableStateOf(Color(0xFF64748B))
-    var Success by mutableStateOf(Color(0xFF10B981))
-    var Warning by mutableStateOf(Color(0xFFF59E0B))
-    var Error by mutableStateOf(Color(0xFFEF4444))
-    var ErrorContainer by mutableStateOf(Color(0xFFFEE2E2))
+object AnimationSpec {
+    // Duration constants
+    const val FAST_ANIMATION_DURATION = 150
+    const val NORMAL_ANIMATION_DURATION = 300
+    const val SLOW_ANIMATION_DURATION = 500
+
+    // Common animation specs
+    val fastSpring = spring<Float>(
+        dampingRatio = Spring.DampingRatioMediumBouncy,
+        stiffness = Spring.StiffnessHigh
+    )
+
+    val normalSpring = spring<Float>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = Spring.StiffnessMedium
+    )
+
+    val slowSpring = spring<Float>(
+        dampingRatio = Spring.DampingRatioLowBouncy,
+        stiffness = Spring.StiffnessLow
+    )
+
+    // Tween animations
+    val fastTween = tween<Float>(
+        durationMillis = FAST_ANIMATION_DURATION,
+        easing = FastOutSlowInEasing
+    )
+
+    val normalTween = tween<Float>(
+        durationMillis = NORMAL_ANIMATION_DURATION,
+        easing = FastOutSlowInEasing
+    )
+
+    val slowTween = tween<Float>(
+        durationMillis = SLOW_ANIMATION_DURATION,
+        easing = FastOutSlowInEasing
+    )
+
+    // Scale animations for buttons and interactive elements
+    val scaleAnimation = keyframes<Float> {
+        durationMillis = FAST_ANIMATION_DURATION
+        0.95f at 50
+        1.0f at FAST_ANIMATION_DURATION
+    }
+
+    // Elevation animation - fixed type
+    val elevationAnimation = tween<Float>(
+        durationMillis = NORMAL_ANIMATION_DURATION,
+        easing = FastOutSlowInEasing
+    )
 }

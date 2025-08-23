@@ -1,20 +1,23 @@
 [versions]
-agp = "8.12.1"
+agp = "8.7.2"  # Stable version with better 16KB support
 coreSplashscreen = "1.0.1"
-kotlin = "1.9.0"
-coreKtx = "1.13.1"
+kotlin = "2.0.21"  # Updated Kotlin for better 16KB compatibility
+composeCompiler = "1.5.15"  # Add Compose Compiler version
+coreKtx = "1.15.0"  # Updated for Android 15 support
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-lifecycleRuntimeKtx = "2.8.4"
-activityCompose = "1.9.1"
-composeBom = "2024.04.01"
+lifecycleRuntimeKtx = "2.8.7"  # Updated lifecycle
+activityCompose = "1.9.3"  # Updated activity compose
+composeBom = "2024.12.01"  # Latest Compose BOM for 16KB compatibility
 googleGmsGoogleServices = "4.4.2"
 firebaseDatabase = "21.0.0"
-firebaseFirestoreKtx = "25.0.0"
-navigationCompose = "2.7.7"
-firebaseAuthKtx = "23.0.0"
+firebaseFirestoreKtx = "25.1.1"  # Updated Firestore
+navigationCompose = "2.8.5"  # Updated navigation
+firebaseAuthKtx = "23.1.0"  # Updated Firebase Auth
 tvMaterial = "1.0.1"
+firebaseCrashlyticsBuildtools = "3.0.6"
+playServicesMlkitSubjectSegmentation = "16.0.0-beta1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,9 +41,11 @@ firebase-database = { group = "com.google.firebase", name = "firebase-database",
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestoreKtx" }
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuthKtx" }
 androidx-tv-material = { group = "androidx.tv", name = "tv-material", version.ref = "tvMaterial" }
+firebase-crashlytics-buildtools = { group = "com.google.firebase", name = "firebase-crashlytics-buildtools", version.ref = "firebaseCrashlyticsBuildtools" }
+play-services-mlkit-subject-segmentation = { group = "com.google.android.gms", name = "play-services-mlkit-subject-segmentation", version.ref = "playServicesMlkitSubjectSegmentation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
-

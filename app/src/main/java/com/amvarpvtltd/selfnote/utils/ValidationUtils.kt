@@ -3,45 +3,51 @@ package com.amvarpvtltd.selfnote.utils
 object ValidationUtils {
 
     /**
-     * Check if a note can be saved based on title requirements only
-     * Title must be at least 5 characters, description has no minimum requirement
-     */
-    fun canSaveNote(title: String, description: String): Boolean {
-        return title.trim().length >= 5
-    }
-
-    /**
-     * Validate title length - must be at least 5 characters
+     * Check if title is valid (meets minimum requirements)
      */
     fun isValidTitle(title: String): Boolean {
-        return title.trim().length >= 5
+        return title.trim().length >= Constants.MIN_CONTENT_LENGTH
     }
 
     /**
-     * Validate description - no minimum requirement, always valid
+     * Check if description is valid (optional but if provided, should meet minimum)
      */
     fun isValidDescription(description: String): Boolean {
-        return true // No minimum requirement for description
+        return description.trim().isEmpty() || description.trim().length >= Constants.MIN_CONTENT_LENGTH
     }
 
     /**
-     * Get validation message for save requirements
+     * Check if a note can be saved (title is valid)
      */
-    fun getSaveValidationMessage(): String {
-        return "Title must be at least 5 characters to save"
+    fun canSaveNote(title: String, description: String): Boolean {
+        return isValidTitle(title)
     }
 
     /**
      * Get validation message for title
      */
     fun getTitleValidationMessage(): String {
-        return "Title must be at least 5 characters"
+        return "Title must be at least ${Constants.MIN_CONTENT_LENGTH} characters"
     }
 
     /**
-     * Get validation message for description
+     * Get validation message for save requirements
      */
-    fun getDescriptionValidationMessage(): String {
-        return "" // No validation message needed since no minimum requirement
+    fun getSaveValidationMessage(): String {
+        return "Please enter a title with at least ${Constants.MIN_CONTENT_LENGTH} characters to save your note"
+    }
+
+    /**
+     * Check if content length is approaching limit
+     */
+    fun isApproachingLimit(currentLength: Int, maxLength: Int): Boolean {
+        return currentLength > (maxLength * 0.8) // 80% of max length
+    }
+
+    /**
+     * Check if content length exceeds limit
+     */
+    fun exceedsLimit(currentLength: Int, maxLength: Int): Boolean {
+        return currentLength >= maxLength
     }
 }

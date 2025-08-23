@@ -2,6 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:allowBackup="true"
@@ -13,12 +14,26 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AppNoActionBar"
         android:enableOnBackInvokedCallback="true"
-        tools:targetApi="tiramisu">
+        android:requestLegacyExternalStorage="false"
+        android:usesCleartextTraffic="false"
+        android:hardwareAccelerated="true"
+        tools:targetApi="35">
+
+        <meta-data
+            android:name="android.max_aspect"
+            android:value="3.0" />
+
+        <meta-data
+            android:name="android.allow_multiple_resumed_activities"
+            android:value="true" />
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.AppNoActionBar">
+            android:theme="@style/Theme.AppNoActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -26,4 +41,12 @@
         </activity>
 
     </application>
+
+    <supports-screens
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:smallScreens="true"
+        android:xlargeScreens="true"
+        android:anyDensity="true" />
+
 </manifest>

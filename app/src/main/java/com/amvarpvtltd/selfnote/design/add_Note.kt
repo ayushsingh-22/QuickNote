@@ -10,13 +10,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -42,6 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.material3.ButtonDefaults
 import com.amvarpvtltd.selfnote.repository.NoteRepository
+import com.amvarpvtltd.selfnote.theme.ProvideNoteTheme
 import com.amvarpvtltd.selfnote.utils.ValidationUtils
 import com.amvarpvtltd.selfnote.utils.UIUtils
 import com.amvarpvtltd.selfnote.utils.Constants
@@ -59,7 +62,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     var descriptionFocused by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-    val noteRepository = remember { NoteRepository() }
+    val noteRepository = remember { NoteRepository(context) }
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
     val titleFocusRequester = remember { FocusRequester() }
@@ -69,8 +72,13 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     val canSave = ValidationUtils.canSaveNote(title, description)
     val hasContent = title.trim().isNotEmpty() || description.trim().isNotEmpty()
 
+    // Theme management - Add this missing variable
+    val themeState = com.amvarpvtltd.selfnote.theme.rememberThemeState()
+    var currentTheme by themeState
+
     val titleProgress = UIUtils.calculateProgress(title.length, Constants.TITLE_MAX_LENGTH)
-    val descriptionProgress = UIUtils.calculateProgress(description.length, Constants.DESCRIPTION_MAX_LENGTH)
+    val descriptionProgress =
+        UIUtils.calculateProgress(description.length, Constants.DESCRIPTION_MAX_LENGTH)
 
     val titleCountColor by animateColorAsState(
         targetValue = UIUtils.getProgressColor(title.length),
@@ -89,7 +97,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
         if (noteId != null) {
             isLoading = true
             try {
-                val result = noteRepository.loadNote(noteId)
+                val result = noteRepository.loadNote(noteId, context)
                 if (result.isSuccess) {
                     val note = result.getOrNull()
                     note?.let {
@@ -98,8 +106,13 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, Constants.ERROR_LOADING_MESSAGE, Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Error loading note: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG)
+                            .show()
                     }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error loading note: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             } finally {
                 isLoading = false
@@ -114,13 +127,94 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
             return
         }
 
+        // Check network status first before starting save process
+        val networkManager = com.amvarpvtltd.selfnote.utils.NetworkManager.getInstance(context)
+        val isOnline = networkManager.isConnected()
+
         isSaving = true
         scope.launch(Dispatchers.IO) {
             try {
                 val result = noteRepository.saveNote(title, description, noteId, context)
-                if (result.isSuccess) {
-                    withContext(Dispatchers.Main) {
-                        navController.navigate("noteScreen")
+
+                withContext(Dispatchers.Main) {
+                    if (result.isSuccess) {
+                        // Show appropriate message based on network status
+                        if (isOnline) {
+                            Toast.makeText(context, Constants.SAVE_SUCCESS_MESSAGE, Toast.LENGTH_SHORT).show()
+                        } else {
+                            // Show the specific offline message requested
+                            Toast.makeText(context, "You are offline. Data will sync automatically when you're back online.", Toast.LENGTH_LONG).show()
+                        }
+
+                        // Navigate based on online status and note creation type
+                        if (!isOnline) {
+                            // Any offline save - go to offline screen
+                            navController.navigate("offlineScreen") {
+                                popUpTo("addscreen") { inclusive = true }
+                            }
+                        } else {
+                            // Online save - normal navigation
+                            val hasExistingNotes = try {
+                                val notesResult = noteRepository.fetchNotes()
+                                val notes = notesResult.getOrNull() ?: emptyList()
+                                notes.size > 1 || (notes.size == 1 && noteId == null)
+                            } catch (e: Exception) {
+                                false
+                            }
+
+                            if (hasExistingNotes) {
+                                navController.navigate("noteScreen") {
+                                    popUpTo("addscreen") { inclusive = true }
+                                }
+                            } else {
+                                navController.navigate("welcomeScreen") {
+                                    popUpTo("addscreen") { inclusive = true }
+                                }
+                            }
+                        }
+                    } else {
+                        // Save failed
+                        if (!isOnline) {
+                            Toast.makeText(context, "You are offline. Data will sync automatically when you're back online.", Toast.LENGTH_LONG).show()
+                            navController.navigate("offlineScreen") {
+                                popUpTo("addscreen") { inclusive = true }
+                            }
+                        } else {
+                            Toast.makeText(context, "⚠️ Error saving note", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    // Handle any exceptions during save
+                    if (!isOnline) {
+                        // Show offline message even if there was an exception
+                        Toast.makeText(context, "You are offline. Data will sync automatically when you're back online.", Toast.LENGTH_LONG).show()
+                        navController.navigate("offlineScreen") {
+                            popUpTo("addscreen") { inclusive = true }
+                        }
+                    } else {
+                        Toast.makeText(context, "Error saving note: ${e.message}", Toast.LENGTH_LONG).show()
+
+                        // Try to navigate based on available notes
+                        try {
+                            val notesResult = noteRepository.fetchNotes()
+                            val notes = notesResult.getOrNull() ?: emptyList()
+
+                            if (notes.isNotEmpty()) {
+                                navController.navigate("noteScreen") {
+                                    popUpTo("addscreen") { inclusive = true }
+                                }
+                            } else {
+                                navController.navigate("welcomeScreen") {
+                                    popUpTo("addscreen") { inclusive = true }
+                                }
+                            }
+                        } catch (navError: Exception) {
+                            navController.navigate("welcomeScreen") {
+                                popUpTo("addscreen") { inclusive = true }
+                            }
+                        }
                     }
                 }
             } finally {
@@ -318,7 +412,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                     shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
                 ) {
                     Icon(
-                        Icons.Outlined.ExitToApp,
+                        Icons.AutoMirrored.Outlined.ExitToApp,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -342,493 +436,530 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
         )
     }
 
-    Scaffold(
-        modifier = Modifier.background(Brush.verticalGradient(
-            colors = listOf(
-                NoteTheme.Background,
-                NoteTheme.SurfaceVariant.copy(alpha = 0.3f),
-                NoteTheme.Background
-            )
-        )),
-        containerColor = Color.Transparent,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isEditing) "Edit Note" else "New Note",
-                            fontWeight = FontWeight.Bold,
-                            color = NoteTheme.OnSurface,
-                            style = MaterialTheme.typography.titleLarge
-                        )
+   ProvideNoteTheme(themeMode = currentTheme) {
+        Scaffold(
+            modifier = Modifier.background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        NoteTheme.Background,
+                        NoteTheme.SurfaceVariant.copy(alpha = 0.3f),
+                        NoteTheme.Background
+                    )
+                )
+            ),
+            containerColor = Color.Transparent,
+            topBar = {
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                        if (isLoading) {
-                            Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
+                    TopAppBar(
+                        title = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isEditing) "Edit Note" else "New Note",
+                                    fontWeight = FontWeight.Bold,
+                                    color = NoteTheme.OnSurface,
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+
+                                if (isLoading) {
+                                    Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp),
+                                        strokeWidth = 2.dp,
+                                        color = NoteTheme.Primary
+                                    )
+                                }
+                            }
+                        },
+
+                        navigationIcon = {
+                            Card(
+                                modifier = Modifier
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        // Handle back navigation with confirmation
+                                        if (hasContent && !isEditing) {
+                                            showBackDialog = true
+                                        } else {
+                                            navController.navigateUp()
+                                        }
+                                    }
+                                    .padding(start = 12.dp), // Move components inside from boundary
+                                shape = CircleShape,
+                                colors = CardDefaults.cardColors(
+                                    containerColor = NoteTheme.Primary.copy(alpha = 0.1f)
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(Constants.PADDING_SMALL.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = NoteTheme.Primary,
+                                        modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
+                                    )
+                                }
+                            }
+                        },
+                        actions = {
+                            Row(
+                                modifier = Modifier.padding(end = 16.dp), // Move components inside from boundary
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (isEditing) {
+                                    Card(
+                                        modifier = Modifier
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                hapticFeedback.performHapticFeedback(
+                                                    HapticFeedbackType.LongPress
+                                                )
+                                                showDeleteDialog = true
+                                            },
+                                        shape = CircleShape,
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = NoteTheme.Error.copy(alpha = 0.1f)
+                                        ),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.padding(Constants.PADDING_SMALL.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.Delete,
+                                                contentDescription = "Delete",
+                                                tint = NoteTheme.Error,
+                                                modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            },
+            floatingActionButton = {
+                // Only show save button when there's no error message and not loading
+                AnimatedVisibility(
+                    visible = !isLoading && canSave,
+                    enter = scaleIn() + fadeIn(),
+                    exit = scaleOut() + fadeOut()
+                ) {
+                    var fabPressed by remember { mutableStateOf(false) }
+                    val fabScale by animateFloatAsState(
+                        targetValue = if (fabPressed) 0.9f else 1f,
+                        animationSpec = UIUtils.getSpringAnimationSpec(),
+                        label = "fab_scale"
+                    )
+
+
+                    ExtendedFloatingActionButton(
+                        onClick = {
+                            fabPressed = true
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            saveNote()
+                        },
+                        modifier = Modifier
+                            .scale(fabScale)
+                            .shadow(
+                                Constants.CORNER_RADIUS_SMALL.dp,
+                                RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)
+                            ),
+                        containerColor = NoteTheme.Primary,
+                        contentColor = NoteTheme.OnPrimary,
+                        shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
+                        elevation = FloatingActionButtonDefaults.elevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp
+                        )
+                    ) {
+                        if (isSaving) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp),
                                 strokeWidth = 2.dp,
-                                color = NoteTheme.Primary
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    Card(
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                // Handle back navigation with confirmation
-                                if (hasContent && !isEditing) {
-                                    showBackDialog = true
-                                } else {
-                                    navController.navigateUp()
-                                }
-                            },
-                        shape = CircleShape,
-                        colors = CardDefaults.cardColors(
-                            containerColor = NoteTheme.Primary.copy(alpha = 0.1f)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // Removed shadow
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(Constants.PADDING_SMALL.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = NoteTheme.Primary,
-                                modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    if (isEditing) {
-                        Card(
-                            modifier = Modifier
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    showDeleteDialog = true
-                                },
-                            shape = CircleShape,
-                            colors = CardDefaults.cardColors(
-                                containerColor = NoteTheme.Error.copy(alpha = 0.1f)
-                            ),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(Constants.PADDING_SMALL.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Outlined.Delete,
-                                    contentDescription = "Delete",
-                                    tint = NoteTheme.Error,
-                                    modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
-                                )
-                            }
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
-            )
-        },
-        floatingActionButton = {
-            // Only show save button when there's no error message and not loading
-            AnimatedVisibility(
-                visible = !isLoading && canSave,
-                enter = scaleIn(
-                    animationSpec = UIUtils.getSpringAnimationSpec()
-                ) + fadeIn(),
-                exit = scaleOut() + fadeOut()
-            ) {
-                var fabPressed by remember { mutableStateOf(false) }
-                val fabScale by animateFloatAsState(
-                    targetValue = if (fabPressed) 0.9f else 1f,
-                    animationSpec = UIUtils.getSpringAnimationSpec(),
-                    label = "fab_scale"
-                )
-
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        fabPressed = true
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        saveNote()
-                    },
-                    modifier = Modifier
-                        .scale(fabScale)
-                        .shadow(Constants.CORNER_RADIUS_SMALL.dp, RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)),
-                    containerColor = NoteTheme.Primary,
-                    contentColor = NoteTheme.OnPrimary,
-                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
-                    elevation = FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp
-                    )
-                ) {
-                    if (isSaving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp),
-                            strokeWidth = 2.dp,
-                            color = NoteTheme.OnPrimary
-                        )
-                        Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
-                        Text(
-                            "Saving...",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    } else {
-                        Icon(
-                            Icons.Outlined.Check,
-                            contentDescription = "Save",
-                            modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
-                        )
-                        Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
-                        Text(
-                            if (isEditing) "Update Note" else "Save Note",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-                }
-
-                LaunchedEffect(fabPressed) {
-                    if (fabPressed) {
-                        kotlinx.coroutines.delay(Constants.SPRING_ANIMATION_DELAY.toLong())
-                        fabPressed = false
-                    }
-                }
-            }
-        }
-    ) { paddingValues ->
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Card(
-                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
-                    colors = CardDefaults.cardColors(containerColor = NoteTheme.Surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(Constants.PADDING_XL.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            color = NoteTheme.Primary,
-                            strokeWidth = 4.dp
-                        )
-                        Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
-                        Text(
-                            "Loading note...",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = NoteTheme.OnSurface,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(backgroundBrush)
-                    .padding(paddingValues)
-                    .padding(Constants.PADDING_MEDIUM.dp),
-                verticalArrangement = Arrangement.spacedBy(Constants.CORNER_RADIUS_LARGE.dp)
-            ) {
-                // Title Section
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = NoteTheme.Surface
-                    ),
-                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(Constants.CORNER_RADIUS_LARGE.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Title,
-                                    contentDescription = null,
-                                    tint = NoteTheme.Primary,
-                                    modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
-                                )
-                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
-                                Text(
-                                    text = "Title",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = NoteTheme.OnSurface,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Progress indicator
-                                Box(
-                                    modifier = Modifier
-                                        .size(Constants.PROGRESS_INDICATOR_SIZE.dp)
-                                        .background(
-                                            color = titleCountColor.copy(alpha = 0.1f),
-                                            shape = CircleShape
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        progress = { titleProgress },
-                                        modifier = Modifier.fillMaxSize(),
-                                        color = titleCountColor,
-                                        strokeWidth = 2.dp
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
-
-                                Text(
-                                    text = UIUtils.formatCharacterCount(title.length, Constants.TITLE_MAX_LENGTH),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = titleCountColor,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
-
-                        OutlinedTextField(
-                            value = title,
-                            onValueChange = { if (it.length <= Constants.TITLE_MAX_LENGTH) title = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(titleFocusRequester)
-                                .onFocusChanged { titleFocused = it.isFocused },
-                            placeholder = {
-                                Text(
-                                    "Enter a compelling title...",
-                                    color = NoteTheme.OnSurfaceVariant
-                                )
-                            },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = titleCountColor,
-                                unfocusedBorderColor = NoteTheme.OnSurfaceVariant.copy(alpha = 0.3f),
-                                cursorColor = NoteTheme.Primary,
-                                focusedLabelColor = titleCountColor,
-                                focusedTextColor = Color.Black,
-                                unfocusedTextColor = Color.Black
-                            ),
-                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
-                        )
-
-                        // Title requirements indicator
-                        AnimatedVisibility(
-                            visible = !ValidationUtils.isValidTitle(title),
-                            enter = slideInVertically() + fadeIn(),
-                            exit = slideOutVertically() + fadeOut()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(top = Constants.PADDING_SMALL.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Info,
-                                    contentDescription = null,
-                                    tint = titleCountColor,
-                                    modifier = Modifier.size(Constants.ICON_SIZE_SMALL.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = ValidationUtils.getTitleValidationMessage(),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = titleCountColor,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Description Section
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .animateContentSize(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = NoteTheme.Surface
-                    ),
-                    shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(Constants.CORNER_RADIUS_LARGE.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Description,
-                                    contentDescription = null,
-                                    tint = NoteTheme.Secondary,
-                                    modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
-                                )
-                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
-
-                                Text(
-                                    text = "Description",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = NoteTheme.OnSurface,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Progress indicator
-                                Box(
-                                    modifier = Modifier
-                                        .size(Constants.PROGRESS_INDICATOR_SIZE.dp)
-                                        .background(
-                                            color = descCountColor.copy(alpha = 0.1f),
-                                            shape = CircleShape
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        progress = { descriptionProgress },
-                                        modifier = Modifier.fillMaxSize(),
-                                        color = descCountColor,
-                                        strokeWidth = 2.dp
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
-
-                                Text(
-                                    text = UIUtils.formatCharacterCount(description.length, Constants.DESCRIPTION_MAX_LENGTH),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = descCountColor,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
-
-                        OutlinedTextField(
-                            value = description,
-                            onValueChange = { if (it.length <= Constants.DESCRIPTION_MAX_LENGTH) description = it },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .onFocusChanged { descriptionFocused = it.isFocused },
-                            placeholder = {
-                                Text(
-                                    "Write your thoughts here...\n\nExpress your ideas, capture important information, or jot down anything that comes to mind.",
-                                    color = NoteTheme.OnSurfaceVariant
-                                )
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = descCountColor,
-                                unfocusedBorderColor = NoteTheme.OnSurfaceVariant.copy(alpha = 0.3f),
-                                cursorColor = NoteTheme.Secondary,
-                                focusedLabelColor = descCountColor,
-                                focusedTextColor = Color.Black,
-                                unfocusedTextColor = Color.Black
-                            ),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(
-                                onDone = { keyboardController?.hide() }
-                            ),
-                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
-                        )
-                    }
-                }
-
-                // Save requirements indicator - This ensures save button doesn't overlap
-                AnimatedVisibility(
-                    visible = !canSave,
-                    enter = slideInVertically() + fadeIn(),
-                    exit = slideOutVertically() + fadeOut()
-                ) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = NoteTheme.Warning.copy(alpha = 0.1f)
-                        ),
-                        shape = RoundedCornerShape(Constants.CORNER_RADIUS_MEDIUM.dp),
-                        border = BorderStroke(1.dp, NoteTheme.Warning.copy(alpha = 0.3f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(Constants.PADDING_MEDIUM.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Warning,
-                                contentDescription = null,
-                                tint = NoteTheme.Warning,
-                                modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
+                                color = NoteTheme.OnPrimary
                             )
                             Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
                             Text(
-                                text = ValidationUtils.getSaveValidationMessage(),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = NoteTheme.Warning,
+                                "Saving...",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        } else {
+                            Icon(
+                                Icons.Outlined.Check,
+                                contentDescription = "Save",
+                                modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
+                            )
+                            Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
+                            Text(
+                                if (isEditing) "Update Note" else "Save Note",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+
+                    LaunchedEffect(fabPressed) {
+                        if (fabPressed) {
+                            kotlinx.coroutines.delay(Constants.SPRING_ANIMATION_DELAY.toLong())
+                            fabPressed = false
+                        }
+                    }
+                }
+            }
+        ) { paddingValues ->
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Card(
+                        shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
+                        colors = CardDefaults.cardColors(containerColor = NoteTheme.Surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(Constants.PADDING_XL.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = NoteTheme.Primary,
+                                strokeWidth = 4.dp
+                            )
+                            Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
+                            Text(
+                                "Loading note...",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = NoteTheme.OnSurface,
                                 fontWeight = FontWeight.Medium
                             )
                         }
                     }
                 }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(backgroundBrush)
+                        .padding(paddingValues)
+                        .padding(Constants.PADDING_MEDIUM.dp)
+                        .verticalScroll(rememberScrollState()), // Enable vertical scrolling
+                    verticalArrangement = Arrangement.spacedBy(Constants.CORNER_RADIUS_LARGE.dp)
+                ) {
+                    // Title Section
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateContentSize(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = NoteTheme.Surface
+                        ),
+                        shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(Constants.CORNER_RADIUS_LARGE.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Title,
+                                        contentDescription = null,
+                                        tint = NoteTheme.Primary,
+                                        modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
+                                    Text(
+                                        text = "Title",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = NoteTheme.OnSurface,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Progress indicator
+                                    Box(
+                                        modifier = Modifier
+                                            .size(Constants.PROGRESS_INDICATOR_SIZE.dp)
+                                            .background(
+                                                color = titleCountColor.copy(alpha = 0.1f),
+                                                shape = CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            progress = { titleProgress },
+                                            modifier = Modifier.fillMaxSize(),
+                                            color = titleCountColor,
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
+
+                                    Text(
+                                        text = UIUtils.formatCharacterCount(
+                                            title.length,
+                                            Constants.TITLE_MAX_LENGTH
+                                        ),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = titleCountColor,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
+
+                            OutlinedTextField(
+                                value = title,
+                                onValueChange = {
+                                    if (it.length <= Constants.TITLE_MAX_LENGTH) title = it
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(titleFocusRequester)
+                                    .onFocusChanged { titleFocused = it.isFocused },
+                                placeholder = {
+                                    Text(
+                                        "Enter a compelling title...",
+                                        color = NoteTheme.OnSurfaceVariant
+                                    )
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = titleCountColor,
+                                    unfocusedBorderColor = NoteTheme.OnSurfaceVariant.copy(alpha = 0.3f),
+                                    cursorColor = NoteTheme.Primary,
+                                    focusedLabelColor = titleCountColor,
+                                    focusedTextColor = NoteTheme.OnSurface, // Use theme-aware color
+                                    unfocusedTextColor = NoteTheme.OnSurface // Use theme-aware color
+                                ),
+                                shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
+                            )
+
+                            // Title requirements indicator
+                            AnimatedVisibility(
+                                visible = !ValidationUtils.isValidTitle(title),
+                                enter = slideInVertically() + fadeIn(),
+                                exit = slideOutVertically() + fadeOut()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(top = Constants.PADDING_SMALL.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Info,
+                                        contentDescription = null,
+                                        tint = titleCountColor,
+                                        modifier = Modifier.size(Constants.ICON_SIZE_SMALL.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = ValidationUtils.getTitleValidationMessage(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = titleCountColor,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Description Section
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 200.dp) // Set minimum height instead of weight
+                            .animateContentSize(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = NoteTheme.Surface
+                        ),
+                        shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(Constants.CORNER_RADIUS_LARGE.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Description,
+                                        contentDescription = null,
+                                        tint = NoteTheme.Secondary,
+                                        modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
+
+                                    Text(
+                                        text = "Description",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = NoteTheme.OnSurface,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Progress indicator
+                                    Box(
+                                        modifier = Modifier
+                                            .size(Constants.PROGRESS_INDICATOR_SIZE.dp)
+                                            .background(
+                                                color = descCountColor.copy(alpha = 0.1f),
+                                                shape = CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            progress = { descriptionProgress },
+                                            modifier = Modifier.fillMaxSize(),
+                                            color = descCountColor,
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
+
+                                    Text(
+                                        text = UIUtils.formatCharacterCount(
+                                            description.length,
+                                            Constants.DESCRIPTION_MAX_LENGTH
+                                        ),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = descCountColor,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
+
+                            OutlinedTextField(
+                                value = description,
+                                onValueChange = {
+                                    if (it.length <= Constants.DESCRIPTION_MAX_LENGTH) description =
+                                        it
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 120.dp) // Set minimum height for text field
+                                    .onFocusChanged { descriptionFocused = it.isFocused },
+                                placeholder = {
+                                    Text(
+                                        "Write your thoughts here...\n\nExpress your ideas, capture important information, or jot down anything that comes to mind.",
+                                        color = NoteTheme.OnSurfaceVariant
+                                    )
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = descCountColor,
+                                    unfocusedBorderColor = NoteTheme.OnSurfaceVariant.copy(alpha = 0.3f),
+                                    cursorColor = NoteTheme.Secondary,
+                                    focusedLabelColor = descCountColor,
+                                    focusedTextColor = NoteTheme.OnSurface, // Use theme-aware color
+                                    unfocusedTextColor = NoteTheme.OnSurface // Use theme-aware color
+                                ),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+                                keyboardActions = KeyboardActions(
+                                    onDone = { /* Allow default behavior - no action needed */ }
+                                ),
+                                shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
+                            )
+                        }
+                    }
+
+                    // Validation warning section
+                    AnimatedVisibility(
+                        visible = !canSave,
+                        enter = slideInVertically() + fadeIn(),
+                        exit = slideOutVertically() + fadeOut()
+                    ) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = NoteTheme.Warning.copy(alpha = 0.1f)
+                            ),
+                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_MEDIUM.dp),
+                            border = BorderStroke(1.dp, NoteTheme.Warning.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(Constants.PADDING_MEDIUM.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Warning,
+                                    contentDescription = null,
+                                    tint = NoteTheme.Warning,
+                                    modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
+                                )
+                                Spacer(modifier = Modifier.width(Constants.CORNER_RADIUS_SMALL.dp))
+                                Text(
+                                    text = ValidationUtils.getSaveValidationMessage(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = NoteTheme.Warning,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    // Add bottom spacing for FAB
+                    Spacer(modifier = Modifier.height(80.dp))
+                }
             }
         }
-    }
 
-    // Auto-focus title when creating new note
-    LaunchedEffect(Unit) {
-        if (!isEditing && !isLoading) {
-            kotlinx.coroutines.delay(Constants.LOADING_DELAY)
-            titleFocusRequester.requestFocus()
+        // Auto-focus title when creating new note
+        LaunchedEffect(Unit) {
+            if (!isEditing && !isLoading) {
+                kotlinx.coroutines.delay(Constants.LOADING_DELAY)
+                titleFocusRequester.requestFocus()
+            }
         }
-    }
 
-    // Handle device back button
-    BackHandler(enabled = true) {
-        // Handle back navigation with confirmation for device back button
-        if (hasContent && !isEditing) {
-            showBackDialog = true
-        } else {
-            navController.navigateUp()
+        // Handle device back button
+        BackHandler(enabled = true) {
+            // Handle back navigation with confirmation for device back button
+            if (hasContent && !isEditing) {
+                showBackDialog = true
+            } else {
+                navController.navigateUp()
+            }
         }
     }
 }

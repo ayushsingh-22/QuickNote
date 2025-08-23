@@ -10,17 +10,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import myGlobalMobileDeviceId
+import com.amvarpvtltd.selfnote.offline.OfflineNoteManager
+import kotlinx.coroutines.flow.Flow
 
-class NoteRepository {
+class NoteRepository(private val context: Context? = null) {
     private val database = FirebaseDatabase.getInstance()
     private val notesRef: DatabaseReference get() = database.getReference("notes").child(myGlobalMobileDeviceId)
+
+    // Offline manager - initialized when context is available
+    private val offlineManager: OfflineNoteManager? = context?.let { OfflineNoteManager(it) }
 
     companion object {
         private const val TAG = "NoteRepository"
     }
 
     /**
-     * Save a new note or update an existing one
+     * Save a new note or update an existing one with offline support
      */
     suspend fun saveNote(
         title: String,
@@ -28,46 +33,66 @@ class NoteRepository {
         noteId: String? = null,
         context: Context
     ): Result<String> {
+        val note = dataclass(title = title.trim(), description = description.trim())
+        note.mymobiledeviceid = myGlobalMobileDeviceId
+        if (noteId != null) {
+            note.id = noteId
+        }
+
+        // Always save offline first for immediate response
+        val offlineManager = OfflineNoteManager(context)
+        val offlineResult = offlineManager.saveNoteOffline(note)
+
+        if (offlineResult.isFailure) {
+            return offlineResult
+        }
+
+        // Try to save online
         return try {
-            val note = dataclass(title = title.trim(), description = description.trim())
-            note.mymobiledeviceid = myGlobalMobileDeviceId
+            val encryptedNote = note.toEncryptedData()
+            notesRef.child(note.id).setValue(encryptedNote).await()
+            Log.d(TAG, "Note saved successfully online: ${note.id}")
+            Result.success(note.id)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save note online: ${e.message}", e)
+            // Note is already saved offline, so this is still a success from user perspective
+            Result.success(note.id)
+        }
+    }
 
-            val deviceIdRef = database.getReference("notes").child(myGlobalMobileDeviceId)
+    /**
+     * Load a note by ID with offline fallback
+     */
+    suspend fun loadNote(noteId: String, context: Context? = null): Result<dataclass> {
+        // First try offline storage if context is available
+        context?.let { ctx ->
+            val offlineManager = OfflineNoteManager(ctx)
+            val offlineNote = offlineManager.getNoteById(noteId)
+            if (offlineNote != null) {
+                Log.d(TAG, "Note loaded from offline storage: $noteId")
+                return Result.success(offlineNote)
+            }
+        }
 
-            if (noteId == null) {
-                // Create new note
-                val encryptedNote = note.toEncryptedData()
-                deviceIdRef.push().setValue(encryptedNote).await()
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "✅ Note saved successfully!", Toast.LENGTH_SHORT).show()
-                }
-
-                Result.success("Note saved successfully")
-            } else {
-                // Update existing note
-                val query = notesRef.orderByChild("id").equalTo(noteId)
-                val keyToUpdate = query.get().await().children.firstOrNull()?.key
-
-                if (keyToUpdate != null) {
-                    note.id = noteId
-                    val encryptedNote = note.toEncryptedData()
-                    deviceIdRef.child(keyToUpdate).setValue(encryptedNote).await()
-
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "✅ Note updated successfully!", Toast.LENGTH_SHORT).show()
-                    }
-
-                    Result.success("Note updated successfully")
+        // Then try online storage
+        return try {
+            val snapshot = notesRef.child(noteId).get().await()
+            if (snapshot.exists()) {
+                val encryptedNote = snapshot.getValue(dataclass::class.java)
+                if (encryptedNote != null) {
+                    val decryptedNote = dataclass.fromEncryptedData(encryptedNote)
+                    Log.d(TAG, "Note loaded successfully from online: $noteId")
+                    Result.success(decryptedNote)
                 } else {
-                    Result.failure(Exception("Note not found"))
+                    Log.e(TAG, "Note data is null for ID: $noteId")
+                    Result.failure(Exception("Note data is null"))
                 }
+            } else {
+                Log.e(TAG, "Note not found online: $noteId")
+                Result.failure(Exception("Note not found"))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error saving note", e)
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "❌ Error saving note", Toast.LENGTH_LONG).show()
-            }
+            Log.e(TAG, "Failed to load note online: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -76,95 +101,136 @@ class NoteRepository {
      * Delete a note by ID
      */
     suspend fun deleteNote(noteId: String, context: Context): Result<String> {
+        // Always delete offline first
+        val offlineManager = OfflineNoteManager(context)
+        val offlineResult = offlineManager.deleteNoteOffline(noteId)
+
+        if (offlineResult.isFailure) {
+            return offlineResult
+        }
+
+        // Try to delete online
         return try {
-            val query = notesRef.orderByChild("id").equalTo(noteId)
-            val keyToDelete = query.get().await().children.firstOrNull()?.key
-
-            if (keyToDelete != null) {
-                notesRef.child(keyToDelete).removeValue().await()
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "🗑️ Note deleted successfully", Toast.LENGTH_SHORT).show()
-                }
-
-                Result.success("Note deleted successfully")
-            } else {
-                Result.failure(Exception("Note not found"))
-            }
+            notesRef.child(noteId).removeValue().await()
+            Log.d(TAG, "Note deleted successfully online: $noteId")
+            Result.success(noteId)
         } catch (e: Exception) {
-            Log.e(TAG, "Error deleting note", e)
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "❌ Error deleting note", Toast.LENGTH_LONG).show()
-            }
-            Result.failure(e)
+            Log.e(TAG, "Failed to delete note online: ${e.message}", e)
+            // Note is already deleted offline, so this is still a success from user perspective
+            Result.success(noteId)
         }
     }
 
     /**
-     * Load a note by ID
+     * Get all notes with offline support
      */
-    suspend fun loadNote(noteId: String): Result<dataclass> {
+    suspend fun getAllNotes(): Result<List<dataclass>> {
         return try {
-            Log.d(TAG, "Loading note with ID: $noteId")
-            val query = notesRef.orderByChild("id").equalTo(noteId)
-            val snapshot = query.get().await()
+            val snapshot = notesRef.get().await()
+            val notes = mutableListOf<dataclass>()
 
-            if (snapshot.exists()) {
-                val keyToUpdate = snapshot.children.first().key
-                if (keyToUpdate != null) {
-                    val noteSnapshot = notesRef.child(keyToUpdate).get().await()
-                    val encryptedNote = noteSnapshot.getValue(dataclass::class.java)
-
+            snapshot.children.forEach { childSnapshot ->
+                try {
+                    val encryptedNote = childSnapshot.getValue(dataclass::class.java)
                     if (encryptedNote != null) {
-                        // Decrypt the note data before returning
                         val decryptedNote = dataclass.fromEncryptedData(encryptedNote)
-                        Log.d(TAG, "Successfully loaded and decrypted note: $noteId")
-                        Result.success(decryptedNote)
-                    } else {
-                        Result.failure(Exception("Note data is null"))
+                        notes.add(decryptedNote)
                     }
-                } else {
-                    Result.failure(Exception("Note key is null"))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error decrypting note: ${childSnapshot.key}", e)
                 }
-            } else {
-                Result.failure(Exception("Note not found"))
             }
+
+            Log.d(TAG, "Loaded ${notes.size} notes from Firebase")
+            Result.success(notes)
         } catch (e: Exception) {
-            Log.e(TAG, "Error loading note", e)
+            Log.e(TAG, "Failed to get notes: ${e.message}", e)
             Result.failure(e)
         }
     }
 
     /**
-     * Fetch all notes for the current device
+     * Fetch notes with offline fallback
      */
     suspend fun fetchNotes(): Result<List<dataclass>> {
         return try {
-            Log.d(TAG, "Fetching notes for device ID: $myGlobalMobileDeviceId")
-            val query = notesRef.orderByChild("mymobiledeviceid").equalTo(myGlobalMobileDeviceId)
-            val snapshot = query.get().await()
-
-            if (snapshot.exists()) {
-                val notes = snapshot.children.mapNotNull { it.getValue(dataclass::class.java) }
-                Log.d(TAG, "Found ${notes.size} notes")
-
-                // Process each note - decrypt if encrypted, return as-is if not
-                val processedNotes = notes.map { note ->
-                    Log.d(TAG, "Processing note: ${note.id}")
-                    // Try to decrypt the note
-                    val decryptedNote = dataclass.fromEncryptedData(note)
-                    decryptedNote
-                }
-
-                Log.d(TAG, "Successfully processed ${processedNotes.size} notes")
-                Result.success(processedNotes)
-            } else {
-                Log.d(TAG, "No notes found")
-                Result.success(emptyList())
+            // Try to get online notes first
+            val onlineResult = getAllNotes()
+            if (onlineResult.isSuccess) {
+                return onlineResult
             }
+
+            // Fallback to offline notes if online fails
+            context?.let { ctx ->
+                val offlineManager = OfflineNoteManager(ctx)
+                val offlineNotes = offlineManager.offlineNotes.value
+                Log.d(TAG, "Using offline notes: ${offlineNotes.size}")
+                Result.success(offlineNotes)
+            } ?: Result.failure(Exception("No context available for offline fallback"))
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching notes from Firebase", e)
+            Log.e(TAG, "Failed to fetch notes: ${e.message}", e)
+
+            // Final fallback to offline
+            context?.let { ctx ->
+                val offlineManager = OfflineNoteManager(ctx)
+                val offlineNotes = offlineManager.offlineNotes.value
+                Result.success(offlineNotes)
+            } ?: Result.failure(e)
+        }
+    }
+
+    /**
+     * Sync offline notes with Firebase
+     */
+    suspend fun syncOfflineNotes(context: Context): Result<String> {
+        val offlineManager = OfflineNoteManager(context)
+        val pendingNotes = offlineManager.pendingSyncNotes.value
+
+        if (pendingNotes.isEmpty()) {
+            return Result.success("No notes to sync")
+        }
+
+        return try {
+            var syncedCount = 0
+            pendingNotes.forEach { note ->
+                try {
+                    val encryptedNote = note.toEncryptedData()
+                    notesRef.child(note.id).setValue(encryptedNote).await()
+                    syncedCount++
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to sync note: ${note.id}", e)
+                }
+            }
+
+            // Clear synced notes from pending list
+            offlineManager.clearSyncedNotes()
+
+            Log.d(TAG, "Synced $syncedCount out of ${pendingNotes.size} notes")
+            Result.success("Synced $syncedCount notes")
+        } catch (e: Exception) {
+            Log.e(TAG, "Sync failed: ${e.message}", e)
             Result.failure(e)
         }
+    }
+
+    /**
+     * Check if a note exists
+     */
+    suspend fun noteExists(noteId: String): Boolean {
+        return try {
+            val snapshot = notesRef.child(noteId).get().await()
+            snapshot.exists()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking note existence: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Check if there are pending sync operations
+     */
+    fun hasPendingSync(context: Context): Boolean {
+        val offlineManager = OfflineNoteManager(context)
+        return offlineManager.hasPendingSync()
     }
 }
