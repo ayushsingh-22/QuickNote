@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material Design 3 Color Attributes -->
+    <attr name="colorBackground" format="color" />
+    <attr name="colorInverseOnSurface" format="color" />
+    <attr name="colorInverseSurface" format="color" />
+    <attr name="colorInversePrimary" format="color" />
+
+    <!-- Additional Material3 attributes that might be needed -->
+    <attr name="colorSurfaceVariant" format="color" />
+    <attr name="colorOnSurfaceVariant" format="color" />
+    <attr name="colorOutline" format="color" />
+    <attr name="colorPrimaryContainer" format="color" />
+    <attr name="colorOnPrimaryContainer" format="color" />
+    <attr name="colorSecondaryContainer" format="color" />
+    <attr name="colorOnSecondaryContainer" format="color" />
+    <attr name="colorTertiaryContainer" format="color" />
+    <attr name="colorOnTertiaryContainer" format="color" />
+    <attr name="colorErrorContainer" format="color" />
+    <attr name="colorOnErrorContainer" format="color" />
+</resources>
+
