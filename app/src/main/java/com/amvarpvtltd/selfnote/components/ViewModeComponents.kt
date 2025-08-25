@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,9 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.amvarpvtltd.selfnote.dataclass
 import com.amvarpvtltd.selfnote.design.NoteTheme
 import com.amvarpvtltd.selfnote.utils.Constants
-import dataclass
 import kotlinx.coroutines.delay
 
 // View Mode enum
@@ -66,7 +67,7 @@ object ViewModeManager {
 
     fun getViewModeIcon(viewMode: ViewMode): androidx.compose.ui.graphics.vector.ImageVector {
         return when (viewMode) {
-            ViewMode.LIST -> Icons.Outlined.ViewList
+            ViewMode.LIST -> Icons.AutoMirrored.Outlined.ViewList
             ViewMode.GRID -> Icons.Outlined.GridView
             ViewMode.CARD -> Icons.Outlined.ViewModule
         }
@@ -142,6 +143,7 @@ fun NotesDisplay(
     onEdit: (dataclass) -> Unit,
     onDelete: (dataclass) -> Unit,
     onShare: (dataclass) -> Unit,
+    onReminder: (dataclass) -> Unit, // Added reminder action
     modifier: Modifier = Modifier
 ) {
     when (viewMode) {
@@ -151,6 +153,7 @@ fun NotesDisplay(
             onEdit = onEdit,
             onDelete = onDelete,
             onShare = onShare,
+            onReminder = onReminder, // Pass reminder action
             modifier = modifier
         )
         ViewMode.LIST -> NotesListView(
@@ -159,6 +162,7 @@ fun NotesDisplay(
             onEdit = onEdit,
             onDelete = onDelete,
             onShare = onShare,
+            onReminder = onReminder, // Pass reminder action
             modifier = modifier
         )
         ViewMode.GRID -> NotesGridView(
@@ -167,6 +171,7 @@ fun NotesDisplay(
             onEdit = onEdit,
             onDelete = onDelete,
             onShare = onShare,
+            onReminder = onReminder, // Pass reminder action
             modifier = modifier
         )
     }
@@ -180,6 +185,7 @@ private fun NotesCardView(
     onEdit: (dataclass) -> Unit,
     onDelete: (dataclass) -> Unit,
     onShare: (dataclass) -> Unit,
+    onReminder: (dataclass) -> Unit, // Added reminder action
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -202,7 +208,9 @@ private fun NotesCardView(
                 onView = onView,
                 onEdit = onEdit,
                 onDelete = onDelete,
-                onShare = onShare
+                onShare = onShare,
+                onReminder = onReminder, // Pass reminder action
+                modifier = modifier
             )
         }
     }
@@ -216,6 +224,7 @@ private fun NotesListView(
     onEdit: (dataclass) -> Unit,
     onDelete: (dataclass) -> Unit,
     onShare: (dataclass) -> Unit,
+    onReminder: (dataclass) -> Unit, // Added reminder action
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -238,7 +247,8 @@ private fun NotesListView(
                 onView = onView,
                 onEdit = onEdit,
                 onDelete = onDelete,
-                onShare = onShare
+                onShare = onShare,
+                onReminder = onReminder, // Pass reminder action
             )
         }
     }
@@ -252,6 +262,7 @@ private fun NotesGridView(
     onEdit: (dataclass) -> Unit,
     onDelete: (dataclass) -> Unit,
     onShare: (dataclass) -> Unit,
+    onReminder: (dataclass) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -280,7 +291,9 @@ private fun NotesGridView(
                 onView = onView,
                 onEdit = onEdit,
                 onDelete = onDelete,
-                onShare = onShare
+                onShare = onShare,
+                onReminder = onReminder,
+
             )
         }
     }
@@ -294,7 +307,9 @@ private fun NoteCardItem(
     onView: (dataclass) -> Unit,
     onEdit: (dataclass) -> Unit,
     onDelete: (dataclass) -> Unit,
-    onShare: (dataclass) -> Unit
+    onShare: (dataclass) -> Unit,
+    onReminder: (dataclass) -> Unit, // Added reminder action
+    modifier: Modifier = Modifier
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
@@ -424,6 +439,19 @@ private fun NoteCardItem(
                             containerColor = accentColor.copy(alpha = 0.1f),
                             contentColor = accentColor
                         )
+
+                        // Reminder button
+                        Spacer(modifier = Modifier.width(12.dp))
+                        IconActionButton(
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onReminder(note)
+                            },
+                            icon = Icons.Outlined.Alarm,
+                            contentDescription = "Set Reminder",
+                            containerColor = NoteTheme.Secondary.copy(alpha = 0.1f),
+                            contentColor = NoteTheme.Secondary
+                        )
                     }
                 }
             }
@@ -457,7 +485,8 @@ private fun NoteListItem(
     onView: (dataclass) -> Unit,
     onEdit: (dataclass) -> Unit,
     onDelete: (dataclass) -> Unit,
-    onShare: (dataclass) -> Unit
+    onShare: (dataclass) -> Unit,
+    onReminder: (dataclass) -> Unit, // Added reminder action
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
@@ -572,6 +601,22 @@ private fun NoteListItem(
                             modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
                         )
                     }
+
+                    // Reminder button
+                    IconButton(
+                        onClick = {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onReminder(note)
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Alarm,
+                            contentDescription = "Set Reminder",
+                            tint = NoteTheme.Secondary,
+                            modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
+                        )
+                    }
                 }
             }
         }
@@ -604,7 +649,9 @@ private fun NoteGridItem(
     onView: (dataclass) -> Unit,
     onEdit: (dataclass) -> Unit,
     onDelete: (dataclass) -> Unit,
-    onShare: (dataclass) -> Unit
+    onShare: (dataclass) -> Unit,
+    onReminder: (dataclass) -> Unit, // Added reminder action
+    onCopy: ((dataclass) -> Unit)? = null
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
@@ -733,6 +780,22 @@ private fun NoteGridItem(
                                 Icons.Outlined.Delete,
                                 contentDescription = "Delete",
                                 tint = Color.Red.copy(alpha = 0.8f),
+                                modifier = Modifier.size(Constants.ICON_SIZE_SMALL.dp)
+                            )
+                        }
+
+                        // Reminder button
+                        IconButton(
+                            onClick = {
+                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onReminder(note)
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Alarm,
+                                contentDescription = "Set Reminder",
+                                tint = accentColor,
                                 modifier = Modifier.size(Constants.ICON_SIZE_SMALL.dp)
                             )
                         }

@@ -1,8 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
-    alias(libs.plugins.compose.compiler)  // Add Compose Compiler plugin
+    alias(libs.plugins.compose.compiler)
     alias(libs.plugins.google.gms.google.services)
+    id("kotlin-kapt")
 }
 
 android {
@@ -23,6 +24,17 @@ android {
 
         // Add 16KB page size testing support
         testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] = "EMULATOR,LOW-BATTERY"
+
+        // Add Room schema export directory
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += mapOf(
+                    "room.schemaLocation" to "$projectDir/schemas",
+                    "room.incremental" to "true",
+                    "room.expandProjection" to "true"
+                )
+            }
+        }
     }
 
     buildTypes {
@@ -39,16 +51,32 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
 
     buildFeatures {
         compose = true
+    }
+
+    // Configure KAPT properly
+    kapt {
+        correctErrorTypes = true
+        useBuildCache = true
+        mapDiagnosticLocations = true
+        javacOptions {
+            this.option("-Xmaxerrs".toString(), 500.toString())
+            this.option("-Xmaxwarns".toString(), 500.toString())
+        }
+        arguments {
+            arg("room.schemaLocation", "$projectDir/schemas")
+            arg("room.incremental", "true")
+            arg("room.expandProjection", "true")
+        }
     }
 
     // Comprehensive packaging configuration for 16KB page size compatibility
@@ -134,14 +162,34 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+
+    // Add Android Material library for XML themes
+    implementation(libs.androidx.material)
+
+    // Firebase BOM - MUST be added as platform dependency
+    implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.database)
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.auth.ktx)
-    implementation(libs.androidx.tv.material)
     implementation(libs.firebase.crashlytics.buildtools)
-    // Add Gson dependency for JSON serialization
-    implementation("com.google.code.gson:gson:2.10.1")
-    implementation(libs.play.services.mlkit.subject.segmentation)
+
+    implementation(libs.androidx.tv.material)
+
+    // Use version catalog dependencies where possible
+    implementation(libs.gson)
+
+    // Room components with proper versions from catalog
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    kapt(libs.androidx.room.compiler)
+
+    // ML Kit Entity Extraction for Smart Reminders
+    implementation(libs.mlkit.entity.extraction)
+
+    // Additional dependencies for Smart Reminders
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -150,6 +198,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.androidx.material.icons.extended)
-    implementation (libs.androidx.navigation.compose)
+    implementation(libs.androidx.navigation.compose)
+
 
 }

@@ -48,24 +48,6 @@ object UIUtils {
         )
     }
 
-    /**
-     * Get bounce animation specification
-     */
-    fun getBounceAnimationSpec(): AnimationSpec<Float> {
-        return spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessHigh
-        )
-    }
-
-
-    /**
-     * Check if a color is dark
-     */
-    fun isDarkColor(color: Color): Boolean {
-        val luminance = 0.299 * color.red + 0.587 * color.green + 0.114 * color.blue
-        return luminance < 0.5
-    }
 
 
 }

@@ -1,6 +1,5 @@
 package com.amvarpvtltd.selfnote.design
 
-import AutoSyncManager
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
@@ -58,13 +57,15 @@ import com.amvarpvtltd.selfnote.components.SyncStatusIndicator
 import com.amvarpvtltd.selfnote.components.ThemeToggleButton
 import com.amvarpvtltd.selfnote.components.ViewModeToggleButton
 import com.amvarpvtltd.selfnote.components.rememberViewModeState
+import com.amvarpvtltd.selfnote.dataclass
 import com.amvarpvtltd.selfnote.repository.NoteRepository
 import com.amvarpvtltd.selfnote.search.rememberSearchAndSortManager
+import com.amvarpvtltd.selfnote.theme.ProvideNoteTheme
 import com.amvarpvtltd.selfnote.theme.rememberThemeState
 import com.amvarpvtltd.selfnote.ui.theme.Lobster_Font
+import com.amvarpvtltd.selfnote.utils.AutoSyncManager
 import com.amvarpvtltd.selfnote.utils.Constants
 import com.amvarpvtltd.selfnote.utils.ShareUtils
-import dataclass
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -110,8 +111,13 @@ fun NotesScreen(navController: NavHostController) {
     // Offline banner state
     var showOfflineBanner by remember { mutableStateOf(false) }
 
-    // Monitor offline state to show banner
-    LaunchedEffect(isOnline) {
+    // Reminder functionality state
+    var selectedNoteForReminder by remember { mutableStateOf<dataclass?>(null) }
+    var showReminderSheet by remember { mutableStateOf(false) }
+    val reminderRepository = remember { com.amvarpvtltd.selfnote.reminders.ReminderRepository(context) }
+
+    // Monitor offline state - show offline banner but don't redirect
+    LaunchedEffect(isOnline, notesState.value) {
         if (!isOnline) {
             showOfflineBanner = true
         } else {
@@ -136,19 +142,20 @@ fun NotesScreen(navController: NavHostController) {
         com.amvarpvtltd.selfnote.components.ViewModeManager.setViewMode(context, currentViewMode)
     }
 
-    // Refresh functionality
+    // Refresh functionality - ALWAYS loads from Room database first
     fun refreshNotes() {
         scope.launch(Dispatchers.IO) {
             isRefreshingState.value = true
             try {
                 delay(Constants.REFRESH_DELAY)
+                // OFFLINE FIRST: Always load from Room database
                 val result = noteRepository.fetchNotes()
                 if (result.isSuccess) {
                     val notes = result.getOrNull() ?: emptyList()
-                    notesState.value = notes
-                    searchAndSortManager.updateNotes(notes)
-
-                    // Note: hasPendingSync will update automatically from StateFlow
+                    withContext(Dispatchers.Main) {
+                        notesState.value = notes
+                        searchAndSortManager.updateNotes(notes)
+                    }
                 }
             } finally {
                 isRefreshingState.value = false
@@ -163,7 +170,13 @@ fun NotesScreen(navController: NavHostController) {
             try {
                 val result = noteRepository.deleteNote(noteId, context)
                 if (result.isSuccess) {
-                    withContext(Dispatchers.Main) { refreshNotes() }
+                    withContext(Dispatchers.Main) {
+                        refreshNotes()
+                        // Show appropriate message based on online status
+                        if (!isOnline) {
+                            Toast.makeText(context, "📱 Note deleted offline. Will sync when online.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -180,6 +193,11 @@ fun NotesScreen(navController: NavHostController) {
 
     // Sync function
     fun syncNotes() {
+        if (!isOnline) {
+            Toast.makeText(context, "❌ Can't sync while offline", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         scope.launch(Dispatchers.IO) {
             try {
                 val result = noteRepository.syncOfflineNotes(context)
@@ -197,6 +215,7 @@ fun NotesScreen(navController: NavHostController) {
         }
     }
 
+    // Initial load - ALWAYS from Room database
     LaunchedEffect(Unit) {
         refreshNotes()
         // Start automatic sync monitoring
@@ -233,7 +252,7 @@ fun NotesScreen(navController: NavHostController) {
         com.amvarpvtltd.selfnote.theme.ThemeManager.setThemeMode(context, currentTheme)
     }
 
-    com.amvarpvtltd.selfnote.theme.ProvideNoteTheme(themeMode = currentTheme) {
+    ProvideNoteTheme(themeMode = currentTheme) {
         NoteScreenBackground {
             Scaffold(
                 containerColor = Color.Transparent,
@@ -422,7 +441,11 @@ fun NotesScreen(navController: NavHostController) {
                                         navController.navigate("addscreen/${note.id}")
                                     },
                                     onDelete = { note -> deleteNote(note.id) },
-                                    onShare = { note -> shareNote(note) }
+                                    onShare = { note -> shareNote(note) },
+                                    onReminder = { note ->
+                                        selectedNoteForReminder = note
+                                        showReminderSheet = true
+                                    }
                                 )
                             }
                         }
@@ -440,6 +463,40 @@ fun NotesScreen(navController: NavHostController) {
                 searchAndSortManager.updateSortOption(sortOption)
             },
             onDismiss = { showSortSheet = false }
+        )
+    }
+
+    // Reminder sheet
+    if (showReminderSheet && selectedNoteForReminder != null) {
+        com.amvarpvtltd.selfnote.components.ReminderBottomSheet(
+            isVisible = showReminderSheet,
+            noteId = selectedNoteForReminder!!.id,
+            noteTitle = selectedNoteForReminder!!.title,
+            noteDescription = selectedNoteForReminder!!.description,
+            onDismiss = {
+                showReminderSheet = false
+                selectedNoteForReminder = null
+            },
+            onReminderSet = { reminderRequest ->
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val result = reminderRepository.createReminder(reminderRequest)
+                        withContext(Dispatchers.Main) {
+                            if (result.isSuccess) {
+                                Toast.makeText(context, "⏰ Reminder set successfully!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "❌ Failed to set reminder", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "❌ Error setting reminder", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                showReminderSheet = false
+                selectedNoteForReminder = null
+            }
         )
     }
 }

@@ -8,14 +8,6 @@ object ValidationUtils {
     fun isValidTitle(title: String): Boolean {
         return title.trim().length >= Constants.MIN_CONTENT_LENGTH
     }
-
-    /**
-     * Check if description is valid (optional but if provided, should meet minimum)
-     */
-    fun isValidDescription(description: String): Boolean {
-        return description.trim().isEmpty() || description.trim().length >= Constants.MIN_CONTENT_LENGTH
-    }
-
     /**
      * Check if a note can be saved (title is valid)
      */
@@ -37,17 +29,4 @@ object ValidationUtils {
         return "Please enter a title with at least ${Constants.MIN_CONTENT_LENGTH} characters to save your note"
     }
 
-    /**
-     * Check if content length is approaching limit
-     */
-    fun isApproachingLimit(currentLength: Int, maxLength: Int): Boolean {
-        return currentLength > (maxLength * 0.8) // 80% of max length
-    }
-
-    /**
-     * Check if content length exceeds limit
-     */
-    fun exceedsLimit(currentLength: Int, maxLength: Int): Boolean {
-        return currentLength >= maxLength
-    }
 }

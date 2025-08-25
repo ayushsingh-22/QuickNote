@@ -1,12 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Light Theme Colors -->
+    <color name="md_theme_light_primary">#2563EB</color>
+    <color name="md_theme_light_onPrimary">#FFFFFF</color>
+    <color name="md_theme_light_primaryContainer">#DBEAFE</color>
+    <color name="md_theme_light_onPrimaryContainer">#1E3A8A</color>
+    <color name="md_theme_light_secondary">#059669</color>
+    <color name="md_theme_light_onSecondary">#FFFFFF</color>
+    <color name="md_theme_light_secondaryContainer">#D1FAE5</color>
+    <color name="md_theme_light_onSecondaryContainer">#064E3B</color>
+    <color name="md_theme_light_tertiary">#7C3AED</color>
+    <color name="md_theme_light_onTertiary">#FFFFFF</color>
+    <color name="md_theme_light_tertiaryContainer">#EDE9FE</color>
+    <color name="md_theme_light_onTertiaryContainer">#5B21B6</color>
+    <color name="md_theme_light_error">#DC2626</color>
+    <color name="md_theme_light_errorContainer">#FEE2E2</color>
+    <color name="md_theme_light_onError">#FFFFFF</color>
+    <color name="md_theme_light_onErrorContainer">#991B1B</color>
+    <color name="md_theme_light_background">#FEFEFE</color>
+    <color name="md_theme_light_onBackground">#1F2937</color>
+    <color name="md_theme_light_surface">#FFFFFF</color>
+    <color name="md_theme_light_onSurface">#1F2937</color>
+    <color name="md_theme_light_surfaceVariant">#F3F4F6</color>
+    <color name="md_theme_light_onSurfaceVariant">#6B7280</color>
+    <color name="md_theme_light_outline">#D1D5DB</color>
+    <color name="md_theme_light_inverseOnSurface">#F9FAFB</color>
+    <color name="md_theme_light_inverseSurface">#374151</color>
+    <color name="md_theme_light_inversePrimary">#93C5FD</color>
+
+    <!-- Dark Theme Colors -->
+    <color name="md_theme_dark_primary">#3B82F6</color>
+    <color name="md_theme_dark_onPrimary">#1E3A8A</color>
+    <color name="md_theme_dark_primaryContainer">#1E40AF</color>
+    <color name="md_theme_dark_onPrimaryContainer">#DBEAFE</color>
+    <color name="md_theme_dark_secondary">#10B981</color>
+    <color name="md_theme_dark_onSecondary">#064E3B</color>
+    <color name="md_theme_dark_secondaryContainer">#047857</color>
+    <color name="md_theme_dark_onSecondaryContainer">#D1FAE5</color>
+    <color name="md_theme_dark_tertiary">#8B5CF6</color>
+    <color name="md_theme_dark_onTertiary">#5B21B6</color>
+    <color name="md_theme_dark_tertiaryContainer">#6D28D9</color>
+    <color name="md_theme_dark_onTertiaryContainer">#EDE9FE</color>
+    <color name="md_theme_dark_error">#EF4444</color>
+    <color name="md_theme_dark_errorContainer">#B91C1C</color>
+    <color name="md_theme_dark_onError">#991B1B</color>
+    <color name="md_theme_dark_onErrorContainer">#FEE2E2</color>
+    <color name="md_theme_dark_background">#111827</color>
+    <color name="md_theme_dark_onBackground">#F9FAFB</color>
+    <color name="md_theme_dark_surface">#1F2937</color>
+    <color name="md_theme_dark_onSurface">#F9FAFB</color>
+    <color name="md_theme_dark_surfaceVariant">#374151</color>
+    <color name="md_theme_dark_onSurfaceVariant">#9CA3AF</color>
+    <color name="md_theme_dark_outline">#4B5563</color>
+    <color name="md_theme_dark_inverseOnSurface">#1F2937</color>
+    <color name="md_theme_dark_inverseSurface">#E5E7EB</color>
+    <color name="md_theme_dark_inversePrimary">#2563EB</color>
+
+    <!-- Additional utility colors -->
+    <color name="transparent">#00000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+
+    <!-- Status colors -->
+    <color name="success">#10B981</color>
+    <color name="warning">#F59E0B</color>
+    <color name="info">#3B82F6</color>
+
+    <!-- Legacy colors for compatibility -->
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
 
     <!-- NoteTheme Colors -->
     <color name="primary">#FF6366F1</color>
@@ -20,8 +85,6 @@
     <color name="on_background">#FF1E293B</color>
     <color name="on_surface">#FF334155</color>
     <color name="on_surface_variant">#FF64748B</color>
-    <color name="success">#FF10B981</color>
-    <color name="warning">#FFF59E0B</color>
     <color name="error">#FFEF4444</color>
     <color name="error_container">#FFFEE2E2</color>
 

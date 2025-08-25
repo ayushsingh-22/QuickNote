@@ -1,11 +1,13 @@
 package com.amvarpvtltd.selfnote.search
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.automirrored.outlined.Subject
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material.icons.outlined.Subject
 import androidx.compose.runtime.*
-import dataclass
+import com.amvarpvtltd.selfnote.dataclass
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import com.amvarpvtltd.selfnote.utils.Constants
@@ -124,36 +126,10 @@ class SearchAndSortManager {
         }
 
         return when (sortOption) {
-            SortOption.DATE_CREATED_DESC -> notes.sortedByDescending {
-                try {
-                    // Use the note ID as timestamp proxy, or actual timestamp if available
-                    it.id.toLongOrNull() ?: it.id.hashCode().toLong()
-                } catch (e: Exception) {
-                    it.id.hashCode().toLong()
-                }
-            }
-            SortOption.DATE_CREATED_ASC -> notes.sortedBy {
-                try {
-                    it.id.toLongOrNull() ?: it.id.hashCode().toLong()
-                } catch (e: Exception) {
-                    it.id.hashCode().toLong()
-                }
-            }
-            SortOption.DATE_MODIFIED_DESC -> notes.sortedByDescending {
-                try {
-                    // If you have a lastModified field, use it, otherwise fall back to ID
-                    it.id.toLongOrNull() ?: it.id.hashCode().toLong()
-                } catch (e: Exception) {
-                    it.id.hashCode().toLong()
-                }
-            }
-            SortOption.DATE_MODIFIED_ASC -> notes.sortedBy {
-                try {
-                    it.id.toLongOrNull() ?: it.id.hashCode().toLong()
-                } catch (e: Exception) {
-                    it.id.hashCode().toLong()
-                }
-            }
+            SortOption.DATE_CREATED_DESC -> notes.sortedByDescending { it.timestamp }
+            SortOption.DATE_CREATED_ASC -> notes.sortedBy { it.timestamp }
+            SortOption.DATE_MODIFIED_DESC -> notes.sortedByDescending { it.timestamp }
+            SortOption.DATE_MODIFIED_ASC -> notes.sortedBy { it.timestamp }
             SortOption.TITLE_ASC -> notes.sortedWith { a, b ->
                 collator.compare(a.title.trim(), b.title.trim())
             }
@@ -186,13 +162,13 @@ class SearchAndSortManager {
         fun getSortIcon(sortOption: SortOption): androidx.compose.ui.graphics.vector.ImageVector {
             return when (sortOption) {
                 SortOption.DATE_CREATED_DESC, SortOption.DATE_MODIFIED_DESC ->
-                    androidx.compose.material.icons.Icons.Outlined.Event
+                    Icons.Outlined.Event
                 SortOption.DATE_CREATED_ASC, SortOption.DATE_MODIFIED_ASC ->
-                    androidx.compose.material.icons.Icons.Outlined.Event
+                    Icons.Outlined.Event
                 SortOption.TITLE_ASC, SortOption.TITLE_DESC ->
-                    androidx.compose.material.icons.Icons.Outlined.Sort
+                    Icons.AutoMirrored.Outlined.Sort
                 SortOption.CONTENT_LENGTH_DESC, SortOption.CONTENT_LENGTH_ASC ->
-                    androidx.compose.material.icons.Icons.Outlined.Subject
+                    Icons.AutoMirrored.Outlined.Subject
             }
         }
     }

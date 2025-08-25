@@ -34,7 +34,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -48,6 +47,11 @@ import com.amvarpvtltd.selfnote.theme.ProvideNoteTheme
 import com.amvarpvtltd.selfnote.utils.ValidationUtils
 import com.amvarpvtltd.selfnote.utils.UIUtils
 import com.amvarpvtltd.selfnote.utils.Constants
+import com.amvarpvtltd.selfnote.ai.DetectedReminder
+import com.amvarpvtltd.selfnote.ai.SmartReminderAI
+import com.amvarpvtltd.selfnote.reminders.ReminderManager
+import kotlinx.coroutines.delay
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,10 +65,17 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     var titleFocused by remember { mutableStateOf(false) }
     var descriptionFocused by remember { mutableStateOf(false) }
 
+    // Smart Reminders state
+    var detectedReminders by remember { mutableStateOf<List<DetectedReminder>>(emptyList()) }
+    var pendingReminders by remember { mutableStateOf<List<DetectedReminder>>(emptyList()) }
+    var showReminderSuggestions by remember { mutableStateOf(false) }
+    var isAnalyzingText by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val noteRepository = remember { NoteRepository(context) }
+    val reminderManager = remember { ReminderManager.getInstance(context) }
+    val smartReminderAI = remember { SmartReminderAI.getInstance(context) }
     val scope = rememberCoroutineScope()
-    val keyboardController = LocalSoftwareKeyboardController.current
     val titleFocusRequester = remember { FocusRequester() }
     val hapticFeedback = LocalHapticFeedback.current
 
@@ -72,7 +83,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     val canSave = ValidationUtils.canSaveNote(title, description)
     val hasContent = title.trim().isNotEmpty() || description.trim().isNotEmpty()
 
-    // Theme management - Add this missing variable
+    // Theme management
     val themeState = com.amvarpvtltd.selfnote.theme.rememberThemeState()
     var currentTheme by themeState
 
@@ -91,6 +102,78 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
         animationSpec = UIUtils.getColorAnimationSpec(),
         label = "desc_count_color"
     )
+
+    // Initialize Smart Reminder AI
+    LaunchedEffect(Unit) {
+        scope.launch(Dispatchers.IO) {
+            smartReminderAI.initialize()
+        }
+    }
+
+    // Automatically analyze text for reminders but store them as pending until note is saved
+    LaunchedEffect(title, description) {
+        val combinedText = "$title. $description".trim()
+
+        if (smartReminderAI.hasReminderKeywords(combinedText)) {
+            scope.launch {
+                delay(1500) // Debounce to avoid excessive API calls
+
+                isAnalyzingText = true
+                try {
+                    val result = smartReminderAI.analyzeTextForReminders(combinedText, title)
+                    if (result.isSuccess) {
+                        val reminders = result.getOrNull() ?: emptyList()
+                        if (reminders.isNotEmpty()) {
+                            // For existing notes, create reminders immediately
+                            if (isEditing &&
+                                noteId != null) {
+                                var createdCount = 0
+                                reminders.forEach { reminder ->
+                                    if (reminder.confidence >= 0.6f) {
+                                        try {
+                                            val success = reminderManager.createReminderFromDetection(reminder, noteId)
+                                            if (success) {
+                                                createdCount++
+                                                Log.d("AddScreen", "✅ Auto-created reminder for existing note: ${reminder.title}")
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("AddScreen", "❌ Error auto-creating reminder for existing note", e)
+                                        }
+                                    }
+                                }
+
+                                if (createdCount > 0) {
+                                    detectedReminders = reminders.filter { it.confidence >= 0.6f }
+                                    Toast.makeText(
+                                        context,
+                                        "🤖 Auto-created $createdCount smart reminder${if (createdCount > 1) "s" else ""}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            } else {
+                                // For new notes, store as pending reminders
+                                val highConfidenceReminders = reminders.filter { it.confidence >= 0.6f }
+                                if (highConfidenceReminders.isNotEmpty()) {
+                                    pendingReminders = highConfidenceReminders
+                                    detectedReminders = highConfidenceReminders
+                                    Log.d("AddScreen", "📝 Stored ${highConfidenceReminders.size} pending reminders for new note")
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("AddScreen", "Error analyzing text for reminders", e)
+                } finally {
+                    isAnalyzingText = false
+                }
+            }
+        } else {
+            // Clear previous analysis if no relevant keywords
+            detectedReminders = emptyList()
+            pendingReminders = emptyList()
+            isAnalyzingText = false
+        }
+    }
 
     // Load existing note data
     LaunchedEffect(noteId) {
@@ -120,102 +203,72 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
         }
     }
 
-    // Save note function
+    // Save note function - OFFLINE FIRST
     fun saveNote() {
         if (!canSave) {
             Toast.makeText(context, Constants.VALIDATION_WARNING_MESSAGE, Toast.LENGTH_LONG).show()
             return
         }
 
-        // Check network status first before starting save process
-        val networkManager = com.amvarpvtltd.selfnote.utils.NetworkManager.getInstance(context)
-        val isOnline = networkManager.isConnected()
-
         isSaving = true
         scope.launch(Dispatchers.IO) {
             try {
+                // ALWAYS save to Room database first (offline-first)
                 val result = noteRepository.saveNote(title, description, noteId, context)
 
                 withContext(Dispatchers.Main) {
                     if (result.isSuccess) {
-                        // Show appropriate message based on network status
+                        val savedNoteId = result.getOrNull()
+                        val finalNoteId = savedNoteId ?: noteId
+
+                        // Create pending reminders after note is saved
+                        if (!isEditing && pendingReminders.isNotEmpty() && finalNoteId != null) {
+                            scope.launch(Dispatchers.IO) {
+                                var createdCount = 0
+                                pendingReminders.forEach { reminder ->
+                                    try {
+                                        val success = reminderManager.createReminderFromDetection(reminder, finalNoteId)
+                                        if (success) {
+                                            createdCount++
+                                            Log.d("AddScreen", "✅ Created pending reminder: ${reminder.title}")
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("AddScreen", "❌ Error creating pending reminder", e)
+                                    }
+                                }
+
+                                if (createdCount > 0) {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(
+                                            context,
+                                            "🤖 Auto-created $createdCount smart reminder${if (createdCount > 1) "s" else ""} for your note",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    Log.d("AddScreen", "📝 Successfully created $createdCount pending reminders")
+                                }
+                            }
+                        }
+
+                        val networkManager = com.amvarpvtltd.selfnote.utils.NetworkManager.getInstance(context)
+                        val isOnline = networkManager.isConnected()
+
                         if (isOnline) {
                             Toast.makeText(context, Constants.SAVE_SUCCESS_MESSAGE, Toast.LENGTH_SHORT).show()
                         } else {
-                            // Show the specific offline message requested
-                            Toast.makeText(context, "You are offline. Data will sync automatically when you're back online.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "📱 Note saved offline. Will sync when online.", Toast.LENGTH_SHORT).show()
                         }
 
-                        // Navigate based on online status and note creation type
-                        if (!isOnline) {
-                            // Any offline save - go to offline screen
-                            navController.navigate("offlineScreen") {
-                                popUpTo("addscreen") { inclusive = true }
-                            }
-                        } else {
-                            // Online save - normal navigation
-                            val hasExistingNotes = try {
-                                val notesResult = noteRepository.fetchNotes()
-                                val notes = notesResult.getOrNull() ?: emptyList()
-                                notes.size > 1 || (notes.size == 1 && noteId == null)
-                            } catch (e: Exception) {
-                                false
-                            }
-
-                            if (hasExistingNotes) {
-                                navController.navigate("noteScreen") {
-                                    popUpTo("addscreen") { inclusive = true }
-                                }
-                            } else {
-                                navController.navigate("welcomeScreen") {
-                                    popUpTo("addscreen") { inclusive = true }
-                                }
-                            }
+                        navController.navigate("noteScreen") {
+                            popUpTo("addscreen") { inclusive = true }
                         }
                     } else {
-                        // Save failed
-                        if (!isOnline) {
-                            Toast.makeText(context, "You are offline. Data will sync automatically when you're back online.", Toast.LENGTH_LONG).show()
-                            navController.navigate("offlineScreen") {
-                                popUpTo("addscreen") { inclusive = true }
-                            }
-                        } else {
-                            Toast.makeText(context, "⚠️ Error saving note", Toast.LENGTH_LONG).show()
-                        }
+                        Toast.makeText(context, "Error saving note", Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    // Handle any exceptions during save
-                    if (!isOnline) {
-                        // Show offline message even if there was an exception
-                        Toast.makeText(context, "You are offline. Data will sync automatically when you're back online.", Toast.LENGTH_LONG).show()
-                        navController.navigate("offlineScreen") {
-                            popUpTo("addscreen") { inclusive = true }
-                        }
-                    } else {
-                        Toast.makeText(context, "Error saving note: ${e.message}", Toast.LENGTH_LONG).show()
-
-                        // Try to navigate based on available notes
-                        try {
-                            val notesResult = noteRepository.fetchNotes()
-                            val notes = notesResult.getOrNull() ?: emptyList()
-
-                            if (notes.isNotEmpty()) {
-                                navController.navigate("noteScreen") {
-                                    popUpTo("addscreen") { inclusive = true }
-                                }
-                            } else {
-                                navController.navigate("welcomeScreen") {
-                                    popUpTo("addscreen") { inclusive = true }
-                                }
-                            }
-                        } catch (navError: Exception) {
-                            navController.navigate("welcomeScreen") {
-                                popUpTo("addscreen") { inclusive = true }
-                            }
-                        }
-                    }
+                    Toast.makeText(context, "Error saving note: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             } finally {
                 withContext(Dispatchers.Main) {
@@ -225,7 +278,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
         }
     }
 
-    // Delete note function
+    // Delete note function - OFFLINE FIRST
     fun deleteNote() {
         if (noteId == null) return
 
@@ -234,10 +287,20 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                 val result = noteRepository.deleteNote(noteId, context)
                 if (result.isSuccess) {
                     withContext(Dispatchers.Main) {
+                        val networkManager = com.amvarpvtltd.selfnote.utils.NetworkManager.getInstance(context)
+                        val isOnline = networkManager.isConnected()
+
+                        if (!isOnline) {
+                            Toast.makeText(context, "📱 Note deleted offline. Will sync when online.", Toast.LENGTH_SHORT).show()
+                        }
+
                         navController.navigate("noteScreen")
                     }
                 }
             } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error deleting note", Toast.LENGTH_LONG).show()
+                }
                 Log.e("AddScreen", "Error in deleteNote", e)
             }
         }
@@ -436,7 +499,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
         )
     }
 
-   ProvideNoteTheme(themeMode = currentTheme) {
+    ProvideNoteTheme(themeMode = currentTheme) {
         Scaffold(
             modifier = Modifier.background(
                 Brush.verticalGradient(
@@ -932,6 +995,63 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                     text = ValidationUtils.getSaveValidationMessage(),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = NoteTheme.Warning,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    // Smart Analysis Indicator - Shows when AI is analyzing text
+                    if (isAnalyzingText) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = NoteTheme.Primary.copy(alpha = 0.05f)
+                            ),
+                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_MEDIUM.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(Constants.PADDING_MEDIUM.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = NoteTheme.Primary
+                                )
+                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
+                                Text(
+                                    text = "🧠 Analyzing for smart reminders...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = NoteTheme.Primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    // Auto-Created Reminders Status - Shows when reminders were created
+                    if (detectedReminders.isNotEmpty()) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = NoteTheme.Success.copy(alpha = 0.05f)
+                            ),
+                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_MEDIUM.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(Constants.PADDING_MEDIUM.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Outlined.CheckCircle,
+                                    contentDescription = null,
+                                    tint = NoteTheme.Success,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
+                                Text(
+                                    text = "✅ ${detectedReminders.size} smart reminder${if (detectedReminders.size > 1) "s" else ""} created automatically",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = NoteTheme.Success,
                                     fontWeight = FontWeight.Medium
                                 )
                             }

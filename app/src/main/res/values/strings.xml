@@ -1,3 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">QuickNote</string>
+    <string name="create_note">Create Note</string>
+    <string name="edit_note">Edit Note</string>
+    <string name="save_note">Save Note</string>
+    <string name="delete_note">Delete Note</string>
+    <string name="share_note">Share Note</string>
+    <string name="search_notes">Search Notes</string>
+    <string name="no_notes_found">No notes found</string>
+    <string name="offline_mode">Offline Mode</string>
+    <string name="sync_notes">Sync Notes</string>
 </resources>

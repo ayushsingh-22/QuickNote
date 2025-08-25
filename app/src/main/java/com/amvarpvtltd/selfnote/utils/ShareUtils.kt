@@ -1,9 +1,11 @@
 package com.amvarpvtltd.selfnote.utils
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
-import dataclass
+import com.amvarpvtltd.selfnote.dataclass
 
 object ShareUtils {
 
@@ -30,34 +32,13 @@ object ShareUtils {
     }
 
     /**
-     * Share multiple notes to other apps
-     */
-    fun shareMultipleNotes(context: Context, notes: List<dataclass>) {
-        try {
-            val shareText = formatMultipleNotesForSharing(notes)
-            val shareIntent = Intent().apply {
-                action = Intent.ACTION_SEND
-                type = Constants.SHARE_MIME_TYPE
-                putExtra(Intent.EXTRA_SUBJECT, "Notes from QuickNote (${notes.size} notes)")
-                putExtra(Intent.EXTRA_TEXT, shareText)
-            }
-
-            val chooserIntent = Intent.createChooser(shareIntent, "Share ${notes.size} notes via...")
-            chooserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            context.startActivity(chooserIntent)
-
-        } catch (e: Exception) {
-            Toast.makeText(context, "❌ Error sharing notes", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**
      * Copy note content to clipboard
      */
     fun copyNoteToClipboard(context: Context, note: dataclass) {
         try {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val clip = android.content.ClipData.newPlainText("Note", formatNoteForSharing(note))
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val noteText = formatNoteForSharing(note)
+            val clip = ClipData.newPlainText("QuickNote - ${note.title}", noteText)
             clipboard.setPrimaryClip(clip)
 
             Toast.makeText(context, "📋 Note copied to clipboard", Toast.LENGTH_SHORT).show()
@@ -67,42 +48,56 @@ object ShareUtils {
     }
 
     /**
-     * Format a single note for sharing
+     * Format a single note for sharing with enhanced formatting
      */
     private fun formatNoteForSharing(note: dataclass): String {
         return buildString {
-            appendLine("📝 ${note.title}")
-            appendLine("=".repeat(note.title.length))
+            // Title Section
+            appendLine("📝 Note")
+            appendLine("Title: ${note.title}")
+            appendLine("=".repeat(maxOf(note.title.length + 8, 25)))
             appendLine()
+
+            // Description Section
             if (note.description.isNotEmpty()) {
-                appendLine(note.description)
+                appendLine("📌 Description:")
+                appendLine(note.description.trim())
+                appendLine()
+            } else {
+                appendLine("📌 Description: (No details provided)")
                 appendLine()
             }
-            appendLine("--")
 
         }
     }
 
+
     /**
-     * Format multiple notes for sharing
+     * Format multiple notes for sharing with enhanced formatting
      */
     private fun formatMultipleNotesForSharing(notes: List<dataclass>): String {
         return buildString {
             appendLine("📚 My Notes Collection (${notes.size} notes)")
-            appendLine("=".repeat(40))
+            appendLine("=".repeat(50))
             appendLine()
 
             notes.forEachIndexed { index, note ->
                 appendLine("${index + 1}. 📝 ${note.title}")
                 appendLine("-".repeat(note.title.length + 6))
                 if (note.description.isNotEmpty()) {
-                    appendLine(note.description)
+                    // Limit description length for better readability when sharing multiple notes
+                    val description = if (note.description.length > 200) {
+                        "${note.description.take(200)}..."
+                    } else {
+                        note.description
+                    }
+                    appendLine(description)
                 }
                 appendLine()
             }
 
             appendLine("--")
-
+            appendLine("📱 Shared from QuickNote")
         }
     }
 }

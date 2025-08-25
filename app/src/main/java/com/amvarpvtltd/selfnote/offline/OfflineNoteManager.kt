@@ -2,17 +2,23 @@ package com.amvarpvtltd.selfnote.offline
 
 import android.content.Context
 import android.util.Log
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import dataclass
+import com.amvarpvtltd.selfnote.dataclass
+import com.amvarpvtltd.selfnote.room.AppDatabase
+import com.amvarpvtltd.selfnote.room.NoteEntityMapper
+import com.amvarpvtltd.selfnote.room.PendingDeletionEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.amvarpvtltd.selfnote.utils.Constants
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class OfflineNoteManager(private val context: Context) {
-    private val gson = Gson()
-    private val prefs = context.getSharedPreferences("offline_notes", Context.MODE_PRIVATE)
+class OfflineNoteManager(context: Context) {
+    private val TAG = "OfflineNoteManager"
+    private val db = AppDatabase.getInstance(context.applicationContext)
+    private val noteDao = db.noteDao()
+    private val pendingDeletionDao = db.pendingDeletionDao()
 
     private val _offlineNotes = MutableStateFlow<List<dataclass>>(emptyList())
     val offlineNotes: StateFlow<List<dataclass>> = _offlineNotes.asStateFlow()
@@ -20,37 +26,28 @@ class OfflineNoteManager(private val context: Context) {
     private val _pendingSyncNotes = MutableStateFlow<List<dataclass>>(emptyList())
     val pendingSyncNotes: StateFlow<List<dataclass>> = _pendingSyncNotes.asStateFlow()
 
-    companion object {
-        private const val TAG = "OfflineNoteManager"
-    }
+    private val _pendingDeletions = MutableStateFlow<List<PendingDeletionEntity>>(emptyList())
+    val pendingDeletions: StateFlow<List<PendingDeletionEntity>> = _pendingDeletions.asStateFlow()
 
     init {
-        loadOfflineNotes()
-        loadPendingSyncNotes()
+        // Load data from DB
+        // initial load
+        CoroutineScope(Dispatchers.IO).launch {
+            refreshLocalNotes()
+            refreshPendingNotes()
+            refreshPendingDeletions()
+        }
     }
 
-    fun saveNoteOffline(note: dataclass): Result<String> {
+    suspend fun saveNoteOffline(note: dataclass, synced: Boolean = false): Result<String> {
         return try {
-            val currentNotes = _offlineNotes.value.toMutableList()
-            val existingIndex = currentNotes.indexOfFirst { it.id == note.id }
-
-            val updatedNote = note.copy(
-                // Add timestamp for offline tracking
-            )
-
-            if (existingIndex >= 0) {
-                currentNotes[existingIndex] = updatedNote
-            } else {
-                currentNotes.add(0, updatedNote)
+            withContext(Dispatchers.IO) {
+                val entity = NoteEntityMapper.toEntity(note, synced)
+                noteDao.insert(entity)
             }
-
-            _offlineNotes.value = currentNotes
-            saveOfflineNotesToPrefs(currentNotes)
-
-            // Add to pending sync
-            addToPendingSync(updatedNote)
-
-            Log.d(TAG, "Note saved offline: ${note.id}")
+            refreshLocalNotes()
+            refreshPendingNotes()
+            Log.d(TAG, "Note saved offline: ${note.id} (synced: $synced)")
             Result.success("Note saved offline successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error saving note offline", e)
@@ -58,231 +55,193 @@ class OfflineNoteManager(private val context: Context) {
         }
     }
 
-    /**
-     * Delete note offline
-     */
-    fun deleteNoteOffline(noteId: String): Result<String> {
+    suspend fun deleteNoteOffline(noteId: String): Result<String> {
         return try {
-            val currentNotes = _offlineNotes.value.toMutableList()
-            val noteToDelete = currentNotes.find { it.id == noteId }
+            withContext(Dispatchers.IO) {
+                // First, check if the note exists and get its device ID
+                val noteEntity = noteDao.getNoteById(noteId)
+                if (noteEntity != null) {
+                    // Delete the note from local storage
+                    noteDao.delete(noteEntity)
 
-            if (noteToDelete != null) {
-                // Remove from offline notes immediately
-                currentNotes.removeAll { it.id == noteId }
-                _offlineNotes.value = currentNotes
-                saveOfflineNotesToPrefs(currentNotes)
+                    // Add to pending deletions for Firebase sync
+                    val pendingDeletion = PendingDeletionEntity(
+                        noteId = noteId,
+                        mymobiledeviceid = noteEntity.mymobiledeviceid
+                    )
+                    pendingDeletionDao.insert(pendingDeletion)
 
-                Log.d(TAG, "Note deleted offline: $noteId")
-                Result.success("Note deleted offline successfully")
-            } else {
-                Result.failure(Exception("Note not found"))
+                    Log.d(TAG, "Note deleted offline and marked for Firebase deletion: $noteId")
+                } else {
+                    Log.w(TAG, "Note not found for deletion: $noteId")
+                }
             }
+            refreshLocalNotes()
+            refreshPendingNotes()
+            refreshPendingDeletions()
+            Result.success("Note deleted offline successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting note offline", e)
             Result.failure(e)
         }
     }
 
-
-    fun getNoteById(noteId: String): dataclass? {
-        return _offlineNotes.value.find { it.id == noteId }
-    }
-
-    /**
-     * Sync offline notes with Firebase when online
-     */
-    suspend fun syncWithFirebase(
-        onlineSaveNote: suspend (dataclass) -> Result<String>,
-        onlineDeleteNote: suspend (String) -> Result<String>,
-        onlineFetchNotes: suspend () -> Result<List<dataclass>>
-    ): Result<String> {
+    suspend fun getNoteById(noteId: String): dataclass? {
         return try {
-            Log.d(TAG, "Starting sync with Firebase...")
+            Log.d(TAG, "Attempting to get note by ID: $noteId")
 
-            // First, fetch latest notes from Firebase
-            val onlineResult = onlineFetchNotes()
-            if (onlineResult.isSuccess) {
-                val onlineNotes = onlineResult.getOrNull() ?: emptyList()
-                mergeWithOnlineNotes(onlineNotes)
+            // Ensure we're running on IO dispatcher for database operations
+            val entity = withContext(Dispatchers.IO) {
+                noteDao.getNoteById(noteId)
             }
 
-            // Sync pending changes
-            val pendingNotes = _pendingSyncNotes.value
-            var syncSuccessCount = 0
-            var syncErrorCount = 0
-
-            for (note in pendingNotes) {
-                try {
-                    if (note.title == "__DELETED__" && note.description == "__DELETED__") {
-                        // Handle deletion
-                        val deleteResult = onlineDeleteNote(note.id)
-                        if (deleteResult.isSuccess) {
-                            syncSuccessCount++
-                        } else {
-                            syncErrorCount++
-                        }
-                    } else {
-                        // Handle save/update
-                        val saveResult = onlineSaveNote(note)
-                        if (saveResult.isSuccess) {
-                            syncSuccessCount++
-                        } else {
-                            syncErrorCount++
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error syncing note ${note.id}", e)
-                    syncErrorCount++
-                }
-            }
-
-            // Clear pending sync if all successful
-            if (syncErrorCount == 0) {
-                clearPendingSync()
-                updateLastSyncTime()
-                Log.d(TAG, "Sync completed successfully: $syncSuccessCount notes synced")
-                Result.success("Sync completed: $syncSuccessCount notes synced")
+            if (entity != null) {
+                Log.d(TAG, "Found note entity in database: $noteId")
+                val domainNote = NoteEntityMapper.toDomain(entity)
+                Log.d(TAG, "Successfully converted entity to domain object: ${domainNote.title}")
+                domainNote
             } else {
-                Log.w(TAG, "Sync completed with errors: $syncSuccessCount successful, $syncErrorCount failed")
-                Result.success("Partial sync: $syncSuccessCount successful, $syncErrorCount failed")
+                Log.w(TAG, "No note found in database for ID: $noteId")
+
+                // Debug: Check if any notes exist in database
+                val allNotes = withContext(Dispatchers.IO) {
+                    noteDao.getAllNotes()
+                }
+                Log.d(TAG, "Total notes in database: ${allNotes.size}")
+                allNotes.forEach { note ->
+                    Log.d(TAG, "Available note ID: ${note.id}")
+                }
+
+                null
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error during sync", e)
+            Log.e(TAG, "Error getting note by ID: $noteId", e)
+            null
+        }
+    }
+
+    suspend fun getAllNotes(): List<dataclass> {
+        return try {
+            withContext(Dispatchers.IO) {
+                val entities = noteDao.getAllNotes()
+                entities.map { NoteEntityMapper.toDomain(it) }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting all notes", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getPendingSyncNotes(): List<dataclass> {
+        return try {
+            withContext(Dispatchers.IO) {
+                val pending = noteDao.getPendingNotes()
+                pending.map { NoteEntityMapper.toDomain(it) }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting pending sync notes", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getPendingDeletions(): List<PendingDeletionEntity> {
+        return try {
+            withContext(Dispatchers.IO) {
+                pendingDeletionDao.getAllPendingDeletions()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting pending deletions", e)
+            emptyList()
+        }
+    }
+
+    suspend fun markNoteAsSynced(noteId: String): Result<String> {
+        return try {
+            withContext(Dispatchers.IO) {
+                val entity = noteDao.getNoteById(noteId)
+                if (entity != null) {
+                    val syncedEntity = entity.copy(synced = true)
+                    noteDao.update(syncedEntity)
+                    Log.d(TAG, "Note marked as synced: $noteId")
+                } else {
+                    Log.w(TAG, "Note not found for sync marking: $noteId")
+                    return@withContext Result.failure<String>(Exception("Note not found"))
+                }
+            }
+            refreshPendingNotes()
+            Result.success("Note marked as synced")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error marking note as synced: $noteId", e)
             Result.failure(e)
         }
     }
 
-    /**
-     * Check if there are pending changes to sync
-     */
-    fun hasPendingSync(): Boolean {
-        return _pendingSyncNotes.value.isNotEmpty()
-    }
-
-    /**
-     * Get last sync time
-     */
-    fun getLastSyncTime(): Long {
-        return prefs.getLong(Constants.LAST_SYNC_TIME_KEY, 0L)
-    }
-
-    private fun loadOfflineNotes() {
-        try {
-            val notesJson = prefs.getString(Constants.OFFLINE_NOTES_KEY, "[]")
-            val type = object : TypeToken<List<dataclass>>() {}.type
-            val notes: List<dataclass> = gson.fromJson(notesJson, type) ?: emptyList()
-            _offlineNotes.value = notes
-            Log.d(TAG, "Loaded ${notes.size} offline notes")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading offline notes", e)
-            _offlineNotes.value = emptyList()
-        }
-    }
-
-    private fun loadPendingSyncNotes() {
-        try {
-            val pendingJson = prefs.getString(Constants.SYNC_PENDING_KEY, "[]")
-            val type = object : TypeToken<List<dataclass>>() {}.type
-            val pendingNotes: List<dataclass> = gson.fromJson(pendingJson, type) ?: emptyList()
-            _pendingSyncNotes.value = pendingNotes
-            Log.d(TAG, "Loaded ${pendingNotes.size} pending sync notes")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading pending sync notes", e)
-            _pendingSyncNotes.value = emptyList()
-        }
-    }
-
-    private fun saveOfflineNotesToPrefs(notes: List<dataclass>) {
-        try {
-            val notesJson = gson.toJson(notes)
-            prefs.edit().putString(Constants.OFFLINE_NOTES_KEY, notesJson).apply()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving offline notes to prefs", e)
-        }
-    }
-
-    private fun addToPendingSync(note: dataclass) {
-        try {
-            val currentPending = _pendingSyncNotes.value.toMutableList()
-            // Remove existing entry for same note ID
-            currentPending.removeAll { it.id == note.id }
-            // Add new entry
-            currentPending.add(note)
-
-            _pendingSyncNotes.value = currentPending
-
-            val pendingJson = gson.toJson(currentPending)
-            prefs.edit().putString(Constants.SYNC_PENDING_KEY, pendingJson).apply()
-
-            Log.d(TAG, "Added note to pending sync: ${note.id}")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error adding to pending sync", e)
-        }
-    }
-
-//    private fun addDeletionToPendingSync(note: dataclass) {
-//        try {
-//            val currentPending = _pendingSyncNotes.value.toMutableList()
-//
-//            // Remove any existing entries for this note ID (in case it was modified before deletion)
-//            currentPending.removeAll { it.id == note.id }
-//
-//            // Save only to pending sync preferences, not to offline notes
-//            val pendingJson = gson.toJson(currentPending)
-//            prefs.edit().putString(Constants.SYNC_PENDING_KEY, pendingJson).apply()
-//
-//            Log.d(TAG, "Added deletion marker to pending sync: ${note.id}")
-//        } catch (e: Exception) {
-//            Log.e(TAG, "Error adding deletion to pending sync", e)
-//        }
-//    }
-
-    private fun clearPendingSync() {
-        _pendingSyncNotes.value = emptyList()
-        prefs.edit().putString(Constants.SYNC_PENDING_KEY, "[]").apply()
-    }
-
-    private fun updateLastSyncTime() {
-        prefs.edit().putLong(Constants.LAST_SYNC_TIME_KEY, System.currentTimeMillis()).apply()
-    }
-
-    private fun mergeWithOnlineNotes(onlineNotes: List<dataclass>) {
-        try {
-            val offlineNotesMap = _offlineNotes.value.associateBy { it.id }.toMutableMap()
-            val mergedNotes = mutableListOf<dataclass>()
-
-            // Add online notes, preferring offline versions if they exist and are newer
-            for (onlineNote in onlineNotes) {
-                val offlineNote = offlineNotesMap[onlineNote.id]
-                if (offlineNote != null) {
-                    // Use offline version (assume it's more recent)
-                    mergedNotes.add(offlineNote)
-                    offlineNotesMap.remove(onlineNote.id)
+    suspend fun markDeletionAsSynced(noteId: String): Result<String> {
+        return try {
+            withContext(Dispatchers.IO) {
+                val removedCount = pendingDeletionDao.removePendingDeletion(noteId)
+                if (removedCount > 0) {
+                    Log.d(TAG, "Pending deletion removed for synced note: $noteId")
                 } else {
-                    mergedNotes.add(onlineNote)
+                    Log.w(TAG, "No pending deletion found for note: $noteId")
                 }
             }
-
-            // Add remaining offline-only notes
-            mergedNotes.addAll(offlineNotesMap.values)
-
-            _offlineNotes.value = mergedNotes.sortedByDescending {
-                // Sort by creation time (newest first)
-                it.id.hashCode() // Simple sorting, can be improved with timestamps
-            }
-
-            saveOfflineNotesToPrefs(_offlineNotes.value)
-            Log.d(TAG, "Merged notes: ${mergedNotes.size} total")
+            refreshPendingDeletions()
+            Result.success("Deletion marked as synced")
         } catch (e: Exception) {
-            Log.e(TAG, "Error merging with online notes", e)
+            Log.e(TAG, "Error marking deletion as synced: $noteId", e)
+            Result.failure(e)
         }
     }
 
-    /**
-     * Clear synced notes from pending list
-     */
+    fun hasPendingSync(): Boolean = pendingSyncNotes.value.isNotEmpty() || pendingDeletions.value.isNotEmpty()
+
+    private suspend fun refreshLocalNotes() {
+        try {
+            withContext(Dispatchers.IO) {
+                val entities = noteDao.getAllNotes()
+                _offlineNotes.value = entities.map { NoteEntityMapper.toDomain(it) }
+                Log.d(TAG, "Refreshed local notes: ${entities.size}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error refreshing local notes", e)
+        }
+    }
+
+    private suspend fun refreshPendingNotes() {
+        try {
+            withContext(Dispatchers.IO) {
+                val pending = noteDao.getPendingNotes()
+                _pendingSyncNotes.value = pending.map { NoteEntityMapper.toDomain(it) }
+                Log.d(TAG, "Refreshed pending sync notes: ${pending.size}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error refreshing pending notes", e)
+        }
+    }
+
+    private suspend fun refreshPendingDeletions() {
+        try {
+            withContext(Dispatchers.IO) {
+                val pendingDeletions = pendingDeletionDao.getAllPendingDeletions()
+                _pendingDeletions.value = pendingDeletions
+                Log.d(TAG, "Refreshed pending deletions: ${pendingDeletions.size}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error refreshing pending deletions", e)
+        }
+    }
+
     fun clearSyncedNotes() {
-        clearPendingSync()
-        Log.d(TAG, "Cleared synced notes from pending list")
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val pending = noteDao.getPendingNotes()
+                pending.forEach { noteDao.update(it.copy(synced = true)) }
+                refreshPendingNotes()
+                Log.d(TAG, "Cleared synced notes from pending list")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error clearing synced notes", e)
+            }
+        }
     }
 }

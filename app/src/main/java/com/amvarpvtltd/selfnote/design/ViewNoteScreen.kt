@@ -1,5 +1,6 @@
 package com.amvarpvtltd.selfnote.design
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,12 +18,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.TextSnippet
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.TextSnippet
-import androidx.compose.material.icons.outlined.Title
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -58,14 +62,11 @@ import com.amvarpvtltd.selfnote.components.EmptyStateCard
 import com.amvarpvtltd.selfnote.components.IconActionButton
 import com.amvarpvtltd.selfnote.components.LoadingCard
 import com.amvarpvtltd.selfnote.components.NoteScreenBackground
-import com.amvarpvtltd.selfnote.components.NoteTopAppBar
-import com.amvarpvtltd.selfnote.components.OfflineActionDialog
-import com.amvarpvtltd.selfnote.components.OfflineIndicator
-import com.amvarpvtltd.selfnote.components.rememberOfflineHandler
+import com.amvarpvtltd.selfnote.dataclass
 import com.amvarpvtltd.selfnote.repository.NoteRepository
 import com.amvarpvtltd.selfnote.utils.Constants
 import com.amvarpvtltd.selfnote.utils.NetworkManager
-import dataclass
+import com.amvarpvtltd.selfnote.utils.ShareUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,7 +77,7 @@ fun ViewNoteScreen(navController: NavHostController, noteId: String?) {
     var note by remember { mutableStateOf<dataclass?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var showOfflineDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val noteRepository = remember { NoteRepository(context) }
@@ -87,62 +88,90 @@ fun ViewNoteScreen(navController: NavHostController, noteId: String?) {
     // Network management
     val networkManager = remember { NetworkManager.getInstance(context) }
     val isOnline by networkManager.isOnline.collectAsState()
-    val offlineHandler = rememberOfflineHandler(
-        isOnline = isOnline,
-        onOfflineAction = { showOfflineDialog = true }
-    )
 
-    // Load note data
+    // OFFLINE FIRST: Load note data from Room database first
     LaunchedEffect(noteId) {
         if (noteId != null) {
+            isLoading = true
+            errorMessage = null
+
             try {
+                Log.d("ViewNoteScreen", "Loading note: $noteId (Online: $isOnline)")
+
+                // ALWAYS try to load from offline storage first (Room database)
                 val result = noteRepository.loadNote(noteId, context)
+
                 if (result.isSuccess) {
-                    note = result.getOrNull()
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Error loading note: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG)
-                            .show()
-                        navController.navigateUp()
+                    val loadedNote = result.getOrNull()
+                    if (loadedNote != null) {
+                        note = loadedNote
+                        Log.d("ViewNoteScreen", "Note loaded successfully from offline storage: ${loadedNote.title}")
+                    } else {
+                        errorMessage = "Note data is empty"
+                        Log.w("ViewNoteScreen", "Note loaded but data is null")
                     }
+                } else {
+                    val error = result.exceptionOrNull()?.message ?: "Unknown error"
+                    errorMessage = "Failed to load note: $error"
+                    Log.e("ViewNoteScreen", "Failed to load note: $error")
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Error loading note: ${e.message}", Toast.LENGTH_LONG).show()
-                    navController.navigateUp()
-                }
+                errorMessage = "Error loading note: ${e.message}"
+                Log.e("ViewNoteScreen", "Exception loading note", e)
             } finally {
                 isLoading = false
             }
         } else {
+            Log.w("ViewNoteScreen", "No noteId provided")
             isLoading = false
-            navController.navigateUp()
+            errorMessage = "No note ID provided"
         }
     }
 
-    // Delete note function
+    // Delete note function - OFFLINE FIRST
     fun deleteNote() {
         if (noteId == null) return
         scope.launch(Dispatchers.IO) {
             try {
+                Log.d("ViewNoteScreen", "Deleting note: $noteId (Online: $isOnline)")
                 val result = noteRepository.deleteNote(noteId, context)
                 if (result.isSuccess) {
                     withContext(Dispatchers.Main) {
-                        if (!isOnline) {
-                            Toast.makeText(context, Constants.OFFLINE_SAVE_MESSAGE, Toast.LENGTH_SHORT).show()
-                            navController.navigate("offlineScreen") {
-                                popUpTo("viewnote/${noteId}") { inclusive = true }
-                            }
+                        val message = if (!isOnline) {
+                            "📱 Note deleted offline. Will sync when online."
                         } else {
-                            navController.navigate("noteScreen")
+                            "✅ Note deleted successfully"
                         }
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        navController.navigate("noteScreen") {
+                            popUpTo("viewnote/${noteId}") { inclusive = true }
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "❌ Error deleting note", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, Constants.ERROR_DELETING_MESSAGE, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "❌ Error deleting note: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
+                Log.e("ViewNoteScreen", "Error deleting note", e)
             }
+        }
+    }
+
+    // Share note function
+    fun shareNote() {
+        note?.let { currentNote ->
+            ShareUtils.shareNote(context, currentNote)
+        }
+    }
+
+    // Copy note function
+    fun copyNote() {
+        note?.let { currentNote ->
+            ShareUtils.copyNoteToClipboard(context, currentNote)
         }
     }
 
@@ -154,19 +183,7 @@ fun ViewNoteScreen(navController: NavHostController, noteId: String?) {
             deleteNote()
         },
         title = note?.title ?: "",
-        message = "Are you sure you want to delete this note?"
-    )
-
-    // Add offline dialog
-    OfflineActionDialog(
-        showDialog = showOfflineDialog,
-        onDismiss = { showOfflineDialog = false },
-        title = "Offline Mode",
-        message = "You can still view and edit this note offline. Changes will sync when you're back online.",
-        actionText = "Edit Offline",
-        onActionClick = {
-            navController.navigate("addscreen/${note?.id}")
-        }
+        message = "Are you sure you want to delete this note? This action cannot be undone."
     )
 
     NoteScreenBackground {
@@ -178,18 +195,54 @@ fun ViewNoteScreen(navController: NavHostController, noteId: String?) {
 
                     TopAppBar(
                         title = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "View Note",
-                                    fontWeight = FontWeight.Bold,
-                                    color = NoteTheme.OnSurface,
-                                    style = MaterialTheme.typography.titleLarge
-                                )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = when {
+                                            isLoading -> "Loading..."
+                                            errorMessage != null -> "Error"
+                                            note != null -> {
+                                                val title = note!!.title
+                                                if (title.length > 25) "${title.take(25)}..." else title
+                                            }
+                                            else -> "Note"
+                                        },
+                                        fontWeight = FontWeight.Bold,
+                                        color = NoteTheme.OnSurface,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    // Show offline indicator in title area
+                                    if (!isOnline) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.CloudOff,
+                                                contentDescription = "Offline",
+                                                tint = NoteTheme.Warning,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Offline Mode",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = NoteTheme.Warning,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
 
                                 if (isLoading) {
-                                    Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp),
+                                        modifier = Modifier.size(20.dp),
                                         strokeWidth = 2.dp,
                                         color = NoteTheme.Primary
                                     )
@@ -203,41 +256,61 @@ fun ViewNoteScreen(navController: NavHostController, noteId: String?) {
                                     navController.navigateUp()
                                 },
                                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = "Back to notes",
                                 containerColor = NoteTheme.Primary.copy(alpha = 0.1f),
                                 contentColor = NoteTheme.Primary,
                                 modifier = Modifier.padding(start = 12.dp)
                             )
                         },
-                        actions = {
-                            Row(
-                                modifier = Modifier.padding(end = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                // Add offline indicator to actions
-                                OfflineIndicator(
-                                    isOnline = isOnline,
-                                    showText = false
-                                )
+                       actions = {
+                           Row(
+                               modifier = Modifier.padding(end = 8.dp),
+                               verticalAlignment = Alignment.CenterVertically,
+                               horizontalArrangement = Arrangement.spacedBy(8.dp)
+                           ) {
+                               // Copy action
+                               if (note != null) {
+                                   IconActionButton(
+                                       onClick = {
+                                           hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                           copyNote()
+                                       },
+                                       icon = Icons.Outlined.ContentCopy,
+                                       contentDescription = "Copy note",
+                                       containerColor = NoteTheme.Secondary.copy(alpha = 0.1f),
+                                       contentColor = NoteTheme.Secondary
+                                   )
+                               }
 
-                                // Delete action
-                                if (note != null) {
-                                    IconActionButton(
-                                        onClick = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            offlineHandler.executeIfOnline {
-                                                showDeleteDialog = true
-                                            }
-                                        },
-                                        icon = Icons.Outlined.Delete,
-                                        contentDescription = "Delete",
-                                        containerColor = NoteTheme.Error.copy(alpha = 0.1f),
-                                        contentColor = NoteTheme.Error
-                                    )
-                                }
-                            }
-                        },
+                               // Share action
+                               if (note != null) {
+                                   IconActionButton(
+                                       onClick = {
+                                           hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                           shareNote()
+                                       },
+                                       icon = Icons.Outlined.Share,
+                                       contentDescription = "Share note",
+                                       containerColor = NoteTheme.Primary.copy(alpha = 0.1f),
+                                       contentColor = NoteTheme.Primary
+                                   )
+                               }
+
+                               // Delete action
+                               if (note != null) {
+                                   IconActionButton(
+                                       onClick = {
+                                           hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                           showDeleteDialog = true
+                                       },
+                                       icon = Icons.Outlined.Delete,
+                                       contentDescription = "Delete note",
+                                       containerColor = NoteTheme.Error.copy(alpha = 0.1f),
+                                       contentColor = NoteTheme.Error
+                                   )
+                               }
+                           }
+                       },
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                     )
 
@@ -249,7 +322,7 @@ fun ViewNoteScreen(navController: NavHostController, noteId: String?) {
                     ActionButton(
                         onClick = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            // Allow editing offline - notes are cached locally
+                            // Allow editing in both online and offline modes
                             navController.navigate("addscreen/${note?.id}")
                         },
                         text = if (isOnline) "Edit Note" else "Edit Offline",
@@ -259,94 +332,115 @@ fun ViewNoteScreen(navController: NavHostController, noteId: String?) {
                 }
             }
         ) { paddingValues ->
-            if (isLoading) {
-                LoadingCard("Loading note...", "Please wait a moment")
-            } else if (note == null) {
-                // Error state
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .padding(24.dp),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
-                ) {
-                    EmptyStateCard(
-                        icon = Icons.Outlined.ErrorOutline,
-                        title = "Note Not Found",
-                        description = "The note you're looking for doesn't exist or has been deleted.",
-                        buttonText = "Go Back",
-                        onButtonClick = { navController.navigateUp() }
-                    )
+            when {
+                isLoading -> {
+                    LoadingCard("Loading your note...", "Fetching from local storage...")
                 }
-            } else {
-                // Display note content
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .padding(Constants.PADDING_MEDIUM.dp)
-                        .verticalScroll(scrollState),
-                    verticalArrangement = Arrangement.spacedBy(Constants.PADDING_LARGE.dp)
-                ) {
-                    // Title Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = NoteTheme.Surface),
-                        shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+
+                errorMessage != null -> {
+                    // Error state
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            modifier = Modifier.padding(Constants.PADDING_LARGE.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Title,
-                                    contentDescription = null,
-                                    tint = NoteTheme.Primary,
-                                    modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
-                                )
-                                Spacer(modifier = Modifier.width(Constants.PADDING_SMALL.dp))
-                                Text(
-                                    text = "Title",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = NoteTheme.OnSurface,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
-
-                            Text(
-                                text = note!!.title,
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = NoteTheme.OnSurface,
-                                fontWeight = FontWeight.Bold,
-                                lineHeight = 32.sp
-                            )
-                        }
+                        EmptyStateCard(
+                            icon = Icons.Outlined.ErrorOutline,
+                            title = "Note Not Found",
+                            description = "The note you're looking for might have been deleted or doesn't exist.\n\nError: $errorMessage",
+                            buttonText = "Go Back to Notes",
+                            onButtonClick = { navController.navigateUp() }
+                        )
                     }
+                }
 
-                    // Description Card (only show if description exists)
-                    if (note!!.description.isNotEmpty()) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = NoteTheme.Surface),
-                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(Constants.PADDING_LARGE.dp)
+                note == null -> {
+                    // No note found state
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        EmptyStateCard(
+                            icon = Icons.Outlined.ErrorOutline,
+                            title = "Note Not Available",
+                            description = "This note could not be loaded. It may not exist in your local storage.",
+                            buttonText = "Go Back to Notes",
+                            onButtonClick = { navController.navigateUp() }
+                        )
+                    }
+                }
+
+                else -> {
+                    // Display note content - WORKS IN BOTH ONLINE AND OFFLINE MODE
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                            .padding(horizontal = Constants.PADDING_MEDIUM.dp)
+                            .verticalScroll(scrollState),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Show offline message if needed
+                        if (!isOnline) {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = NoteTheme.Warning.copy(alpha = 0.1f)
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Row(
-                                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.CloudOff,
+                                        contentDescription = "Offline",
+                                        tint = NoteTheme.Warning,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = "Viewing Offline",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = NoteTheme.Warning,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "This note is loaded from your device storage",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = NoteTheme.Warning
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Description Card
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = NoteTheme.Surface
+                            ),
+                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(Constants.CORNER_RADIUS_LARGE.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.Description,
-                                        contentDescription = null,
+                                        Icons.Outlined.Description,
+                                        contentDescription = "Description",
                                         tint = NoteTheme.Secondary,
                                         modifier = Modifier.size(Constants.ICON_SIZE_MEDIUM.dp)
                                     )
@@ -362,47 +456,71 @@ fun ViewNoteScreen(navController: NavHostController, noteId: String?) {
                                 Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
 
                                 Text(
-                                    text = note!!.description,
+                                    text = note?.description ?: "",
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = NoteTheme.OnSurfaceVariant,
-                                    lineHeight = 28.sp,
+                                    color = NoteTheme.OnSurface,
+                                    lineHeight = 24.sp,
                                     textAlign = TextAlign.Start
                                 )
                             }
                         }
-                    } else {
-                        // No description card
+
+                        // Metadata Card
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
-                                containerColor = NoteTheme.SurfaceVariant.copy(alpha = 0.5f)
+                                containerColor = NoteTheme.SurfaceVariant.copy(alpha = 0.3f)
                             ),
-                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp)
+                            shape = RoundedCornerShape(Constants.CORNER_RADIUS_MEDIUM.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(
-                                modifier = Modifier.padding(Constants.PADDING_LARGE.dp),
-                                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                            Row(
+                                modifier = Modifier.padding(Constants.PADDING_SMALL.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.TextSnippet,
-                                    contentDescription = null,
-                                    tint = NoteTheme.OnSurfaceVariant,
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
-                                Text(
-                                    text = "No description added",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = NoteTheme.OnSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                                )
+                                Column {
+                                    Text(
+                                        text = "Created",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = NoteTheme.OnSurfaceVariant,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = note?.let {
+                                            java.text.SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", java.util.Locale.getDefault())
+                                                .format(java.util.Date(it.timestamp))
+                                        } ?: "",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = NoteTheme.OnSurface,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+
+                                if (!isOnline) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.CloudOff,
+                                            contentDescription = "Offline",
+                                            tint = NoteTheme.Warning,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Offline",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = NoteTheme.Warning,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
                             }
                         }
-                    }
 
-                    // Add some bottom padding for FAB
-                    Spacer(modifier = Modifier.height(80.dp))
+                        // Add bottom spacing for FAB
+                        Spacer(modifier = Modifier.height(80.dp))
+                    }
                 }
             }
         }

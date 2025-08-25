@@ -3,7 +3,7 @@ package com.amvarpvtltd.selfnote.utils
 object Constants {
     // Character limits
     const val TITLE_MAX_LENGTH = 50
-    const val DESCRIPTION_MAX_LENGTH = 1000
+    const val DESCRIPTION_MAX_LENGTH = 10000
     const val MIN_CONTENT_LENGTH = 5
     const val WARNING_LENGTH = 3
 
@@ -52,24 +52,14 @@ object Constants {
     const val THEME_MODE_KEY = "theme_mode"
     const val DEFAULT_THEME_MODE = "system"
 
-    // Offline support
-    const val OFFLINE_NOTES_KEY = "offline_notes"
-    const val SYNC_PENDING_KEY = "sync_pending"
-    const val LAST_SYNC_TIME_KEY = "last_sync_time"
-
     // Search and sorting
     const val SEARCH_DEBOUNCE_DELAY = 300L
-    const val SORT_BY_DATE_CREATED = "date_created"
-    const val SORT_BY_DATE_MODIFIED = "date_modified"
-    const val SORT_BY_TITLE = "title"
-    const val SORT_BY_CONTENT_LENGTH = "content_length"
-    const val SORT_ORDER_ASC = "ascending"
-    const val SORT_ORDER_DESC = "descending"
+
 
     // View mode preferences
     const val VIEW_MODE_PREFERENCES = "view_mode_preferences"
     const val VIEW_MODE_KEY = "view_mode"
-    const val DEFAULT_VIEW_MODE = "list"
+    const val DEFAULT_VIEW_MODE = "grid"
     const val VIEW_MODE_LIST = "list"
     const val VIEW_MODE_GRID = "grid"
     const val VIEW_MODE_CARD = "card"

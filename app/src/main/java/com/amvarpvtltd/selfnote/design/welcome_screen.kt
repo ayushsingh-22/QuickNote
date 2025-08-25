@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -19,9 +20,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.amvarpvtltd.selfnote.ui.theme.Lobster_Font
 import com.amvarpvtltd.selfnote.components.*
 import kotlinx.coroutines.delay
+import kotlin.compareTo
 
 @Composable
 fun welcomeScreen(navController: NavHostController) {
@@ -51,6 +54,9 @@ fun welcomeScreen(navController: NavHostController) {
             repeatMode = RepeatMode.Reverse
         ), label = "pulse"
     )
+
+    val backgroundColor = NoteTheme.Surface
+    val textColor = if (isColorDark(backgroundColor)) Color.White else Color.Black
 
     NoteScreenBackground {
         if (isLoading) {
@@ -94,7 +100,7 @@ fun welcomeScreen(navController: NavHostController) {
                     fontFamily = Lobster_Font,
                     fontSize = 36.sp,
                     fontWeight = FontWeight.Bold,
-                    color = NoteTheme.Primary
+                    color = textColor
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -102,7 +108,7 @@ fun welcomeScreen(navController: NavHostController) {
                 // Description
                 Text(
                     text = "Capture your thoughts, simply and beautifully",
-                    color = NoteTheme.OnSurfaceVariant,
+                    color = textColor.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
@@ -125,4 +131,16 @@ fun welcomeScreen(navController: NavHostController) {
             }
         }
     }
+}
+
+private fun isColorDark(color: Color): Boolean {
+    val luminance = (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue)
+    return luminance < 0.5
+}
+
+@androidx.compose.ui.tooling.preview.Preview
+@Composable
+fun WelcomeScreenPreview() {
+    val navController = rememberNavController()
+    welcomeScreen(navController = navController)
 }
