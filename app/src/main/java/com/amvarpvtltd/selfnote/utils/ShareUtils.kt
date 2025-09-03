@@ -71,33 +71,4 @@ object ShareUtils {
         }
     }
 
-
-    /**
-     * Format multiple notes for sharing with enhanced formatting
-     */
-    private fun formatMultipleNotesForSharing(notes: List<dataclass>): String {
-        return buildString {
-            appendLine("📚 My Notes Collection (${notes.size} notes)")
-            appendLine("=".repeat(50))
-            appendLine()
-
-            notes.forEachIndexed { index, note ->
-                appendLine("${index + 1}. 📝 ${note.title}")
-                appendLine("-".repeat(note.title.length + 6))
-                if (note.description.isNotEmpty()) {
-                    // Limit description length for better readability when sharing multiple notes
-                    val description = if (note.description.length > 200) {
-                        "${note.description.take(200)}..."
-                    } else {
-                        note.description
-                    }
-                    appendLine(description)
-                }
-                appendLine()
-            }
-
-            appendLine("--")
-            appendLine("📱 Shared from QuickNote")
-        }
-    }
 }

@@ -143,8 +143,8 @@ fun ViewNoteScreen(navController: NavHostController, noteId: String?) {
                             "✅ Note deleted successfully"
                         }
                         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                        navController.navigate("noteScreen") {
-                            popUpTo("viewnote/${noteId}") { inclusive = true }
+                        navController.navigate("main") {
+                            popUpTo("main") { inclusive = false }
                         }
                     }
                 } else {

@@ -216,56 +216,41 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                 // ALWAYS save to Room database first (offline-first)
                 val result = noteRepository.saveNote(title, description, noteId, context)
 
-                withContext(Dispatchers.Main) {
-                    if (result.isSuccess) {
-                        val savedNoteId = result.getOrNull()
-                        val finalNoteId = savedNoteId ?: noteId
+               // kotlin
+               // Add debug + safe navigation inside saveNote() success branch
+               withContext(Dispatchers.Main) {
+                   if (result.isSuccess) {
+                       val savedNoteId = result.getOrNull()
+                       val finalNoteId = savedNoteId ?: noteId
 
-                        // Create pending reminders after note is saved
-                        if (!isEditing && pendingReminders.isNotEmpty() && finalNoteId != null) {
-                            scope.launch(Dispatchers.IO) {
-                                var createdCount = 0
-                                pendingReminders.forEach { reminder ->
-                                    try {
-                                        val success = reminderManager.createReminderFromDetection(reminder, finalNoteId)
-                                        if (success) {
-                                            createdCount++
-                                            Log.d("AddScreen", "✅ Created pending reminder: ${reminder.title}")
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e("AddScreen", "❌ Error creating pending reminder", e)
-                                    }
-                                }
+                       // (keep pending reminders creation code here)
 
-                                if (createdCount > 0) {
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(
-                                            context,
-                                            "🤖 Auto-created $createdCount smart reminder${if (createdCount > 1) "s" else ""} for your note",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                    Log.d("AddScreen", "📝 Successfully created $createdCount pending reminders")
-                                }
-                            }
-                        }
+                       val networkManager = com.amvarpvtltd.selfnote.utils.NetworkManager.getInstance(context)
+                       val isOnline = networkManager.isConnected()
 
-                        val networkManager = com.amvarpvtltd.selfnote.utils.NetworkManager.getInstance(context)
-                        val isOnline = networkManager.isConnected()
+                       if (isOnline) {
+                           Toast.makeText(context, Constants.SAVE_SUCCESS_MESSAGE, Toast.LENGTH_SHORT).show()
+                       } else {
+                           Toast.makeText(context, "📱 Note saved offline. Will sync when online.", Toast.LENGTH_SHORT).show()
+                       }
 
-                        if (isOnline) {
-                            Toast.makeText(context, Constants.SAVE_SUCCESS_MESSAGE, Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "📱 Note saved offline. Will sync when online.", Toast.LENGTH_SHORT).show()
-                        }
+                       Log.d("AddScreen", "Save successful — currentRoute=${navController.currentBackStackEntry?.destination?.route}")
 
-                        navController.navigate("noteScreen") {
-                            popUpTo("addscreen") { inclusive = true }
-                        }
-                    } else {
-                        Toast.makeText(context, "Error saving note", Toast.LENGTH_LONG).show()
-                    }
-                }
+                       try {
+                           navController.navigate("main") {
+                               popUpTo("main") { inclusive = false }
+                               launchSingleTop = true
+                               restoreState = true
+                           }
+                           Log.d("AddScreen", "Navigation to main requested")
+                       } catch (e: Exception) {
+                           Log.e("AddScreen", "Navigation failed", e)
+                           Toast.makeText(context, "Navigation error: ${e.message}", Toast.LENGTH_LONG).show()
+                       }
+                   } else {
+                       Toast.makeText(context, "Error saving note", Toast.LENGTH_LONG).show()
+                   }
+               }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Error saving note: ${e.message}", Toast.LENGTH_LONG).show()
@@ -294,7 +279,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                             Toast.makeText(context, "📱 Note deleted offline. Will sync when online.", Toast.LENGTH_SHORT).show()
                         }
 
-                        navController.navigate("noteScreen")
+                        navController.navigate("main")
                     }
                 }
             } catch (e: Exception) {

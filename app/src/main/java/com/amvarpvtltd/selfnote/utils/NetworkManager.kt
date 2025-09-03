@@ -11,7 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class NetworkManager(private val context: Context) {
-    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     private val _isOnline = MutableStateFlow(false)
     val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
@@ -47,8 +48,9 @@ class NetworkManager(private val context: Context) {
         val activeNetwork = connectivityManager.activeNetwork
         val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
 
-        val isConnected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
-                         capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        val isConnected =
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 
         _isOnline.value = isConnected
 
@@ -60,7 +62,10 @@ class NetworkManager(private val context: Context) {
             else -> ConnectionType.NONE
         }
 
-        Log.d(TAG, "Initial connection check - Online: ${_isOnline.value}, Type: ${_connectionType.value}")
+        Log.d(
+            TAG,
+            "Initial connection check - Online: ${_isOnline.value}, Type: ${_connectionType.value}"
+        )
     }
 
     private fun registerNetworkCallback() {
@@ -83,7 +88,10 @@ class NetworkManager(private val context: Context) {
                 _connectionType.value = ConnectionType.NONE
             }
 
-            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
                 super.onCapabilitiesChanged(network, networkCapabilities)
                 Log.d(TAG, "Network capabilities changed")
                 updateConnectionStatus(network)
@@ -98,8 +106,9 @@ class NetworkManager(private val context: Context) {
     private fun updateConnectionStatus(network: Network) {
         val capabilities = connectivityManager.getNetworkCapabilities(network)
 
-        val isConnected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
-                         capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        val isConnected =
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 
         _isOnline.value = isConnected
 
@@ -111,21 +120,13 @@ class NetworkManager(private val context: Context) {
             else -> ConnectionType.NONE
         }
 
-        Log.d(TAG, "Connection updated - Online: ${_isOnline.value}, Type: ${_connectionType.value}")
+        Log.d(
+            TAG,
+            "Connection updated - Online: ${_isOnline.value}, Type: ${_connectionType.value}"
+        )
     }
 
     fun isConnected(): Boolean {
         return _isOnline.value
-    }
-
-    fun getConnectionType(): ConnectionType {
-        return _connectionType.value
-    }
-
-    fun cleanup() {
-        networkCallback?.let {
-            connectivityManager.unregisterNetworkCallback(it)
-        }
-        networkCallback = null
     }
 }

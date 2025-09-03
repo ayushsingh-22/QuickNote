@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -306,7 +308,18 @@ fun NotesScreen(navController: NavHostController) {
                                             onSyncClick = { syncNotes() }
                                         )
 
-                                        Spacer(modifier = Modifier.width(15.dp))
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        // Sync settings button (updated from Device ID settings)
+                                        IconActionButton(
+                                            onClick = { navController.navigate("syncSettings") },
+                                            icon = Icons.Outlined.QrCode,
+                                            contentDescription = "Sync Settings",
+                                            containerColor = NoteTheme.Secondary.copy(alpha = 0.1f),
+                                            contentColor = NoteTheme.Secondary
+                                        )
+
+                                        Spacer(modifier = Modifier.width(12.dp))
 
                                         // Theme toggle button
                                         ThemeToggleButton(
@@ -401,15 +414,15 @@ fun NotesScreen(navController: NavHostController) {
                             LoadingCard("Loading your notes...", "Please wait a moment")
                         }
 
-                        searchAndSortState.filteredNotes.isEmpty() && searchAndSortState.isSearchActive -> {
+                        searchAndSortState.isSearchActive && searchAndSortState.filteredNotes.isEmpty() -> {
                             EmptyStateCard(
                                 icon = Icons.Outlined.SearchOff,
                                 title = "No results found",
-                                description = "Try adjusting your search terms\nor create a new note",
-                                buttonText = "Create New Note",
+                                description = "Try adjusting your search query or filters.",
+                                buttonText = "Clear Filters",
                                 onButtonClick = {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    navController.navigate("addscreen")
+                                    localSearchQuery = ""
+                                    searchAndSortManager.clearSearch()
                                 }
                             )
                         }

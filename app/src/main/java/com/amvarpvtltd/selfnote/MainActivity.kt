@@ -67,22 +67,4 @@ class MainActivity : ComponentActivity() {
         // - Disable notification-dependent features
         // - Guide user to settings
     }
-
-    /**
-     * Public method to check notification permission status
-     * Can be called from anywhere in the app
-     */
-    fun canSendNotifications(): Boolean {
-        return ::permissionManager.isInitialized && permissionManager.canSendNotifications()
-    }
-
-    /**
-     * Public method to manually request permission again
-     * Useful for settings screen or when user wants to re-enable notifications
-     */
-    fun requestNotificationPermission() {
-        if (::permissionManager.isInitialized) {
-            permissionManager.forceRequestNotificationPermission()
-        }
-    }
 }

@@ -28,6 +28,19 @@ object EncryptionUtil {
         return SecretKeySpec(keyBytes, ALGORITHM)
     }
 
+    /**
+     * Returns a short hex preview of the derived AES key for logging (first 8 bytes hex)
+     */
+    fun getKeyPreview(deviceId: String): String {
+        return try {
+            val digest = MessageDigest.getInstance("SHA-256")
+            val hash = digest.digest(deviceId.toByteArray(Charsets.UTF_8))
+            hash.copyOf(8).joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            "unknown"
+        }
+    }
+
     fun encrypt(plainText: String, deviceId: String): String {
         return try {
             if (plainText.isEmpty()) return plainText // No need to encrypt empty strings
@@ -96,7 +109,7 @@ object EncryptionUtil {
      * for AES/ECB/PKCS5Padding encryption (multiple of AES block size after decoding).
      * This is a heuristic and not a definitive proof of encryption by *this* system's key.
      */
-    private fun isPotentiallyEncrypted(text: String): Boolean {
+    fun isPotentiallyEncrypted(text: String): Boolean {
         if (text.isEmpty()) return false
 
         // Quick check for non-Base64 characters or typical plaintext characteristics.

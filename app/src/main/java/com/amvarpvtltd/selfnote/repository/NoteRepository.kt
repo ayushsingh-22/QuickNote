@@ -3,8 +3,9 @@ package com.amvarpvtltd.selfnote.repository
 import android.content.Context
 import android.util.Log
 import com.amvarpvtltd.selfnote.dataclass
-import com.amvarpvtltd.selfnote.myGlobalMobileDeviceId
 import com.amvarpvtltd.selfnote.offline.OfflineNoteManager
+import com.amvarpvtltd.selfnote.auth.DeviceManager
+import com.amvarpvtltd.selfnote.auth.PassphraseManager
 import com.amvarpvtltd.selfnote.utils.NetworkManager
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
@@ -12,10 +13,21 @@ import kotlinx.coroutines.tasks.await
 
 class NoteRepository(val context: Context? = null) {
     private val database = FirebaseDatabase.getInstance()
-    private val notesRef: DatabaseReference get() = database.getReference("notes").child(myGlobalMobileDeviceId)
 
     companion object {
         private const val TAG = "NoteRepository"
+    }
+
+    /**
+     * Resolve the Firebase path for notes:
+     * users/{accountId}/notes/{deviceId}
+     * accountId = stored passphrase if present, otherwise deviceId
+     */
+    private fun resolveNotesRef(): DatabaseReference {
+        val ctx = context ?: throw IllegalStateException("Context required to resolve notesRef")
+        val deviceId = DeviceManager.getOrCreateDeviceId(ctx)
+        val accountId = PassphraseManager.getStoredPassphrase(ctx).takeIf { !it.isNullOrEmpty() } ?: deviceId
+        return database.getReference("users").child(accountId).child("notes").child(deviceId)
     }
 
     /**
@@ -29,7 +41,9 @@ class NoteRepository(val context: Context? = null) {
         context: Context
     ): Result<String> {
         val note = dataclass(title = title.trim(), description = description.trim())
-        note.mymobiledeviceid = myGlobalMobileDeviceId
+        // Ensure note carries the current device id
+        val deviceIdForNote = DeviceManager.getOrCreateDeviceId(context)
+        note.mymobiledeviceid = deviceIdForNote
         if (noteId != null) {
             note.id = noteId
         }
@@ -50,7 +64,7 @@ class NoteRepository(val context: Context? = null) {
         if (networkManager.isConnected()) {
             try {
                 val encryptedNote = note.toEncryptedData()
-                notesRef.child(note.id).setValue(encryptedNote).await()
+                resolveNotesRef().child(note.id).setValue(encryptedNote).await()
                 Log.d(TAG, "Note synced to cloud successfully: ${note.id}")
 
                 // Mark as synced in local database
@@ -104,7 +118,7 @@ class NoteRepository(val context: Context? = null) {
         if (isOnline) {
             Log.d(TAG, "Attempting to load note from cloud: $noteId")
             return try {
-                val snapshot = notesRef.child(noteId).get().await()
+                val snapshot = resolveNotesRef().child(noteId).get().await()
                 if (snapshot.exists()) {
                     val encryptedNote = snapshot.getValue(dataclass::class.java)
                     if (encryptedNote != null) {
@@ -160,7 +174,7 @@ class NoteRepository(val context: Context? = null) {
         val networkManager = NetworkManager.getInstance(context)
         if (networkManager.isConnected()) {
             try {
-                notesRef.child(noteId).removeValue().await()
+                resolveNotesRef().child(noteId).removeValue().await()
                 Log.d(TAG, "Note deleted from cloud successfully: $noteId")
 
                 // Mark deletion as synced (remove from pending deletions)
@@ -217,7 +231,7 @@ class NoteRepository(val context: Context? = null) {
             pendingDeletions.forEach { pendingDeletion ->
                 try {
                     Log.d(TAG, "Processing pending deletion: ${pendingDeletion.noteId}")
-                    notesRef.child(pendingDeletion.noteId).removeValue().await()
+                    resolveNotesRef().child(pendingDeletion.noteId).removeValue().await()
                     offlineManager.markDeletionAsSynced(pendingDeletion.noteId)
                     Log.d(TAG, "✅ Successfully deleted from Firebase: ${pendingDeletion.noteId}")
                 } catch (e: Exception) {
@@ -231,7 +245,7 @@ class NoteRepository(val context: Context? = null) {
             val pendingDeletionIds = pendingDeletions.map { it.noteId }.toSet()
 
             // THIRD: Download from Firebase
-            val snapshot = notesRef.get().await()
+            val snapshot = resolveNotesRef().get().await()
             val cloudNotes = mutableListOf<dataclass>()
 
             snapshot.children.forEach { childSnapshot ->
@@ -286,7 +300,7 @@ class NoteRepository(val context: Context? = null) {
             pendingNotes.forEach { note ->
                 try {
                     val encryptedNote = note.toEncryptedData()
-                    notesRef.child(note.id).setValue(encryptedNote).await()
+                    resolveNotesRef().child(note.id).setValue(encryptedNote).await()
                     offlineManager.markNoteAsSynced(note.id)
                     syncedNotesCount++
                     Log.d(TAG, "✅ Synced note to cloud: ${note.id}")
@@ -298,7 +312,7 @@ class NoteRepository(val context: Context? = null) {
             // Sync pending deletions
             pendingDeletions.forEach { pendingDeletion ->
                 try {
-                    notesRef.child(pendingDeletion.noteId).removeValue().await()
+                    resolveNotesRef().child(pendingDeletion.noteId).removeValue().await()
                     offlineManager.markDeletionAsSynced(pendingDeletion.noteId)
                     syncedDeletionsCount++
                     Log.d(TAG, "✅ Synced deletion to cloud: ${pendingDeletion.noteId}")
