@@ -20,7 +20,11 @@ import com.amvarpvtltd.selfnote.design.NoteTheme
 import com.amvarpvtltd.selfnote.offline.OfflineNoteManager
 import com.amvarpvtltd.selfnote.theme.ProvideNoteTheme
 import com.amvarpvtltd.selfnote.theme.rememberThemeState
+import com.amvarpvtltd.selfnote.auth.DeviceManager
+import com.amvarpvtltd.selfnote.sync.SyncManager
+import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -92,7 +96,35 @@ fun MyApp() {
                 return@LaunchedEffect
             }
 
-            // No local data and no stored credentials: show onboarding
+            // No local data and no stored credentials: check if this device id has data on Firebase (reinstall case)
+            try {
+                val deviceId = DeviceManager.getOrCreateDeviceId(context)
+                Log.d("MyApp", "No local notes — checking remote for deviceId: $deviceId")
+                val db = FirebaseDatabase.getInstance()
+                val userRef = db.getReference("users").child(deviceId)
+                val snapshot = withContext(Dispatchers.IO) { userRef.get().await() }
+                if (snapshot.exists()) {
+                    // If there are notes/reminders for this device, import them into local DB
+                    Log.d("MyApp", "Remote data found for deviceId: $deviceId — importing to local DB")
+                    try {
+                        // Use SyncManager to import notes from this passphrase/deviceId into local DB
+                        val syncResult = withContext(Dispatchers.IO) { SyncManager.syncDataFromPassphrase(context, deviceId, deviceId) }
+                        if (syncResult.isSuccess) {
+                            Log.d("MyApp", "Imported remote notes for deviceId: $deviceId")
+                            myGlobalMobileDeviceId = deviceId
+                            startDestination = "main"
+                        } else {
+                            Log.w("MyApp", "Failed to import remote notes for deviceId: $deviceId: ${syncResult.exceptionOrNull()?.message}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("MyApp", "Error importing remote notes for deviceId: $deviceId", e)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("MyApp", "Remote device check failed", e)
+            }
+
+            // No data found anywhere: show onboarding
             Log.d("MyApp", "🆕 New user, showing onboarding")
             startDestination = "onboarding"
 

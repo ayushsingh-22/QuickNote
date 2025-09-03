@@ -71,6 +71,20 @@ fun OnboardingScreen(
                             val deviceId = DeviceManager.getOrCreateDeviceId(context)
                             PassphraseManager.storePassphrase(context, deviceId).getOrThrow()
 
+                            // After storing passphrase, check Firebase for existing notes under this device
+                            // If notes exist remotely for this device, import them into local DB so user immediately sees them
+                            try {
+                                val syncResult = SyncManager.syncDataFromPassphrase(context, deviceId, deviceId)
+                                if (syncResult.isSuccess) {
+                                    // imported successfully (or nothing to import)
+                                    android.util.Log.d("OnboardingScreen", "Imported remote notes for device: $deviceId")
+                                } else {
+                                    android.util.Log.w("OnboardingScreen", "No remote notes or import failed for device: $deviceId - ${syncResult.exceptionOrNull()?.message}")
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.w("OnboardingScreen", "Remote import check failed for device: $deviceId", e)
+                            }
+
                             // Navigate to main screen
                             navController.navigate("main") {
                                 popUpTo("onboarding") { inclusive = true }

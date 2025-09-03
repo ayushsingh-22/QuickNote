@@ -133,7 +133,7 @@ object SyncManager {
                         if (firstLevelChild.child("title").exists() || firstLevelChild.child("description").exists()) {
                             val noteData = firstLevelChild.getValue(dataclass::class.java)
                             if (noteData != null) {
-                                val candidates = listOfNotNull(noteData.mymobiledeviceid, sourcePassphrase, myGlobalMobileDeviceId).distinct()
+                                val candidates = listOfNotNull(currentPassphrase, noteData.mymobiledeviceid, sourcePassphrase, myGlobalMobileDeviceId).distinct()
                                 val decrypted = tryDecryptWithCandidates(noteData, candidates)
                                 if (decrypted == null) {
                                     Log.w(TAG, "Skipping note ${noteData.id} because decryption failed for all keys")
@@ -151,7 +151,7 @@ object SyncManager {
                                 try {
                                     val noteData = noteChild.getValue(dataclass::class.java)
                                     if (noteData != null) {
-                                        val candidates = listOfNotNull(noteData.mymobiledeviceid, sourcePassphrase, myGlobalMobileDeviceId).distinct()
+                                        val candidates = listOfNotNull(currentPassphrase, noteData.mymobiledeviceid, sourcePassphrase, myGlobalMobileDeviceId).distinct()
                                         val decrypted = tryDecryptWithCandidates(noteData, candidates)
                                         if (decrypted == null) {
                                             Log.w(TAG, "Skipping nested note ${noteData.id} because decryption failed for all keys")

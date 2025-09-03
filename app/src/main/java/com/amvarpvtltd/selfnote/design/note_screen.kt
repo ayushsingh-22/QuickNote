@@ -1,5 +1,6 @@
 package com.amvarpvtltd.selfnote.design
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
-import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
@@ -72,6 +72,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.amvarpvtltd.selfnote.auth.DeviceManager
+import com.amvarpvtltd.selfnote.auth.PassphraseManager
+import com.amvarpvtltd.selfnote.sync.SyncManager
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -222,6 +225,26 @@ fun NotesScreen(navController: NavHostController) {
         refreshNotes()
         // Start automatic sync monitoring
         autoSyncManager.startAutoSync()
+        // One-time attempt: if online, import any remote notes that exist for this device/account so user sees remote notes immediately
+        if (networkManager.isConnected()) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val accountId = PassphraseManager.getStoredPassphrase(context)
+                        ?: DeviceManager.getOrCreateDeviceId(context)
+                    // Use accountId as both source and target to import notes stored under users/{accountId}/notes/{deviceId}
+                    val res = SyncManager.syncDataFromPassphrase(context, accountId, accountId)
+                    if (res.isSuccess) {
+                        // Refresh UI after import
+                        withContext(Dispatchers.Main) { refreshNotes() }
+                    } else {
+                        // ignore failures; AutoSync will handle retries
+                        Log.d("NotesScreen", "One-time remote import returned failure: ${res.exceptionOrNull()?.message}")
+                    }
+                } catch (e: Exception) {
+                    Log.d("NotesScreen", "One-time remote import failed", e)
+                }
+            }
+        }
     }
 
     // Cleanup when screen is disposed
