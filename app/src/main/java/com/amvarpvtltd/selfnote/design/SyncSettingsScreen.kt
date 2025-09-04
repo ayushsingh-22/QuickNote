@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.amvarpvtltd.selfnote.design
 
 import android.graphics.Bitmap
@@ -5,6 +7,8 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -34,6 +39,7 @@ import java.util.*
 fun SyncSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
 
     var currentPassphrase by remember { mutableStateOf("") }
@@ -63,271 +69,180 @@ fun SyncSettingsScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Sync Settings") },
+                title = { Text("Sync Settings", color = NoteTheme.OnSurface) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = NoteTheme.OnSurface)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = NoteTheme.SurfaceVariant
                 )
             )
         }
     ) { paddingValues ->
+        // Reworked UI: modern consistent layout using ElevatedCard, tonal buttons and helper sections
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(horizontal = 18.dp, vertical = 16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // Current Device Info
-            Card(
+            // Device Info Card
+            ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = NoteTheme.Surface)
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Smartphone,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(
-                            text = "This Device",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                Column(modifier = Modifier.padding(16.dp)) {
+                    SectionHeader(icon = Icons.Default.Smartphone, title = "This Device")
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     if (currentPassphrase.isNotEmpty()) {
                         Text(
-                            text = "Passphrase:",
+                            text = "Passphrase",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            color = NoteTheme.OnSurfaceVariant
                         )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = currentPassphrase,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SelectionContainer(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = currentPassphrase,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Medium,
+                                    color = NoteTheme.OnSurface
+                                )
+                            }
+                            FilledTonalIconButton(
                                 onClick = {
                                     clipboardManager.setText(AnnotatedString(currentPassphrase))
                                     Toast.makeText(context, "Passphrase copied!", Toast.LENGTH_SHORT).show()
-                                }
+                                },
+                                modifier = Modifier.padding(start = 8.dp),
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = NoteTheme.SecondaryContainer)
                             ) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = NoteTheme.OnSecondaryContainer)
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Sync Stats
+                        // Stats
                         syncStats?.let { stats ->
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Divider(color = NoteTheme.Outline)
+                            Spacer(modifier = Modifier.height(12.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column {
-                                    Text(
-                                        text = "${stats.totalNotes}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Notes",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                    )
-                                }
-                                Column {
-                                    Text(
-                                        text = "${stats.totalReminders}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Reminders",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                    )
-                                }
-                                Column {
-                                    Text(
-                                        text = if (stats.lastSyncAt > 0) {
-                                            SimpleDateFormat("MMM dd", Locale.getDefault())
-                                                .format(Date(stats.lastSyncAt))
-                                        } else "Never",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Last Sync",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                    )
-                                }
+                                StatItem(value = stats.totalNotes.toString(), label = "Notes", icon = Icons.Default.Description)
+                                StatItem(value = stats.totalReminders.toString(), label = "Reminders", icon = Icons.Default.Notifications)
+                                val lastSync = if (stats.lastSyncAt > 0) SimpleDateFormat("MMM dd", Locale.getDefault()).format(Date(stats.lastSyncAt)) else "Never"
+                                StatItem(value = lastSync, label = "Last Sync", icon = Icons.Default.Sync)
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "No passphrase found for this device.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NoteTheme.OnSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Share & Sync Actions Card
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = NoteTheme.Surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ActionSection(
+                        icon = Icons.Default.Share,
+                        title = "Share with Another Device",
+                        description = "Use one of the options below to securely transfer your passphrase."
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            FilledTonalButton(
+                                onClick = {
+                                    if (currentPassphrase.isNotEmpty()) {
+                                        qrCodeBitmap = PassphraseManager.generateQRCode(currentPassphrase)
+                                        showQRCode = true
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = NoteTheme.PrimaryContainer,
+                                    contentColor = NoteTheme.OnPrimaryContainer
+                                )
+                            ) {
+                                Icon(Icons.Default.QrCode, contentDescription = null, modifier = Modifier.size(18.dp), tint = NoteTheme.Primary)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Show QR", color = NoteTheme.OnPrimary)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(currentPassphrase))
+                                    Toast.makeText(context, "Passphrase copied to clipboard!", Toast.LENGTH_LONG).show()
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NoteTheme.OnSurface)
+                            ) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp), tint = NoteTheme.OnSurface)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Copy", color = NoteTheme.OnSurface)
                             }
                         }
                     }
-                }
-            }
 
-            // Share Passphrase Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                    Divider(color = NoteTheme.Outline)
+
+                    ActionSection(
+                        icon = Icons.Default.CloudDownload,
+                        title = "Import from Another Device",
+                        description = "Scan a device QR or enter a passphrase to import notes & reminders."
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(
-                            text = "Share with Another Device",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Text(
-                        text = "Use these options to sync your data to another device:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                if (currentPassphrase.isNotEmpty()) {
-                                    qrCodeBitmap = PassphraseManager.generateQRCode(currentPassphrase)
-                                    showQRCode = true
-                                }
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.QrCode,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 4.dp)
+                        FilledTonalButton(
+                            onClick = { showQRScanner = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = NoteTheme.SecondaryContainer,
+                                contentColor = NoteTheme.OnSecondaryContainer
                             )
-                            Text("Show QR")
+                        ) {
+                            Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp), tint = NoteTheme.Primary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Scan and Sync", color = NoteTheme.OnSecondary)
                         }
 
-                        OutlinedButton(
-                            onClick = {
-                                clipboardManager.setText(AnnotatedString(currentPassphrase))
-                                Toast.makeText(context, "Passphrase copied to clipboard!", Toast.LENGTH_LONG).show()
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ContentCopy,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                            Text("Copy")
+                        TextButton(onClick = { showSyncDialog = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.textButtonColors(contentColor = NoteTheme.Primary)) {
+                            Text("Enter passphrase manually", color = NoteTheme.Primary)
                         }
                     }
                 }
             }
 
-            // Sync from Another Device Section
-            Card(
+            // Info Card
+            ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = NoteTheme.SurfaceVariant),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CloudDownload,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text(
-                            text = "Sync from Another Device",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Text(
-                        text = "Import notes and reminders from another device:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    Button(
-                        onClick = { showQRScanner = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text("Sync Data")
-                    }
-                }
-            }
-
-            // Info Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "ℹ️ How Sync Works",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    Text(
-                        text = "• Each device has a unique passphrase\n" +
-                                "• Sync copies data from one device to another\n" +
-                                "• After sync, devices remain independent\n" +
-                                "• Your data is encrypted and secure",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "How Sync Works", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = NoteTheme.OnSurface)
+                    InfoItem("Each device has a unique passphrase")
+                    InfoItem("Sync copies data from one device to another")
+                    InfoItem("After sync, devices remain independent")
+                    InfoItem("Your data is encrypted and secure")
                 }
             }
         }
@@ -476,6 +391,53 @@ fun SyncSettingsScreen(navController: NavController) {
     }
 }
 
+// Helper composables added to keep UI consistent with other screens
+@Composable
+private fun SectionHeader(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = NoteTheme.Primary, modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = NoteTheme.OnSurface)
+    }
+}
+
+@Composable
+private fun StatItem(value: String, label: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(imageVector = icon, contentDescription = null, tint = NoteTheme.Primary, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = NoteTheme.OnSurface)
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = NoteTheme.OnSurfaceVariant)
+    }
+}
+
+@Composable
+private fun ActionSection(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    content: @Composable () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = NoteTheme.Primary, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = NoteTheme.OnSurface)
+        }
+        Text(description, style = MaterialTheme.typography.bodySmall, color = NoteTheme.OnSurfaceVariant)
+        Spacer(modifier = Modifier.height(6.dp))
+        content()
+    }
+}
+
+@Composable
+private fun InfoItem(text: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
+        Text("•", color = NoteTheme.Primary)
+        Text(text = text, style = MaterialTheme.typography.bodySmall, color = NoteTheme.OnSurfaceVariant)
+    }
+}
+
 @Composable
 fun QRCodeDialog(
     bitmap: Bitmap,
@@ -487,7 +449,8 @@ fun QRCodeDialog(
         title = {
             Text(
                 text = "QR Code for Sync",
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = NoteTheme.OnSurface
             )
         },
         text = {
@@ -503,19 +466,20 @@ fun QRCodeDialog(
                 Text(
                     text = "Scan this QR code on another device to sync your data",
                     style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = NoteTheme.OnSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = passphrase,
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    color = NoteTheme.OnSurface.copy(alpha = 0.7f)
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, colors = ButtonDefaults.textButtonColors(contentColor = NoteTheme.Primary)) {
                 Text("Close")
             }
         }
@@ -538,7 +502,8 @@ fun SyncFromDeviceDialog(
         title = {
             Text(
                 text = "Sync from Another Device",
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = NoteTheme.OnSurface
             )
         },
         text = {
@@ -546,23 +511,33 @@ fun SyncFromDeviceDialog(
                 Text(
                     text = "Enter the passphrase from the other device:",
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    color = NoteTheme.OnSurfaceVariant
                 )
 
                 // Passphrase Input
-                TextField(
-                    value = inputPassphrase,
-                    onValueChange = onPassphraseChange,
-                    placeholder = { Text("Enter passphrase") },
-                    isError = errorMessage.isNotEmpty(),
-                    modifier = Modifier.fillMaxWidth()
+            TextField(
+                value = inputPassphrase,
+                onValueChange = onPassphraseChange,
+                placeholder = { Text("Enter passphrase", color = NoteTheme.OnSurfaceVariant) },
+                isError = errorMessage.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = NoteTheme.SurfaceVariant,
+                    unfocusedContainerColor = NoteTheme.SurfaceVariant,
+                    focusedTextColor = NoteTheme.OnSurface,
+                    unfocusedTextColor = NoteTheme.OnSurface,
+                    cursorColor = NoteTheme.Primary,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
                 )
+            )
 
                 // Error message
                 if (errorMessage.isNotEmpty()) {
                     Text(
                         text = errorMessage,
-                        color = MaterialTheme.colorScheme.error,
+                        color = NoteTheme.Error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 8.dp)
                     )
@@ -574,15 +549,16 @@ fun SyncFromDeviceDialog(
                 Button(
                     onClick = onSync,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isLoading
+                    enabled = !isLoading,
+                    colors = ButtonDefaults.buttonColors(containerColor = NoteTheme.Primary)
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = NoteTheme.OnPrimary
                         )
                     } else {
-                        Text("Sync Data")
+                        Text("Sync Data", color = NoteTheme.OnPrimary)
                     }
                 }
 
@@ -591,9 +567,10 @@ fun SyncFromDeviceDialog(
                 // Cancel button
                 OutlinedButton(
                     onClick = onCancel,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NoteTheme.OnSurface)
                 ) {
-                    Text("Cancel")
+                    Text("Cancel", color = NoteTheme.OnSurface)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -601,14 +578,16 @@ fun SyncFromDeviceDialog(
                 // QR Code Scanner button
                 Button(
                     onClick = { showQRScanner = true },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = NoteTheme.Secondary)
                 ) {
                     Icon(
                         imageVector = Icons.Default.QrCodeScanner,
                         contentDescription = null,
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.padding(end = 8.dp),
+                        tint = NoteTheme.OnSecondary
                     )
-                    Text("Scan QR Code")
+                    Text("Scan QR Code", color = NoteTheme.OnSecondary)
                 }
             }
         },
@@ -618,8 +597,8 @@ fun SyncFromDeviceDialog(
             Box {}
         },
         dismissButton = {
-            TextButton(onClick = onCancel) {
-                Text("Close")
+            TextButton(onClick = onCancel, colors = ButtonDefaults.textButtonColors(contentColor = NoteTheme.Primary)) {
+                Text("Close", color = NoteTheme.Primary)
             }
         }
     )
