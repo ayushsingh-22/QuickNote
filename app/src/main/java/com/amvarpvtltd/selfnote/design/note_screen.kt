@@ -1,5 +1,6 @@
 package com.amvarpvtltd.selfnote.design
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.QrCode
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,6 +72,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.amvarpvtltd.selfnote.auth.DeviceManager
+import com.amvarpvtltd.selfnote.auth.PassphraseManager
+import com.amvarpvtltd.selfnote.sync.SyncManager
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -220,6 +225,26 @@ fun NotesScreen(navController: NavHostController) {
         refreshNotes()
         // Start automatic sync monitoring
         autoSyncManager.startAutoSync()
+        // One-time attempt: if online, import any remote notes that exist for this device/account so user sees remote notes immediately
+        if (networkManager.isConnected()) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val accountId = PassphraseManager.getStoredPassphrase(context)
+                        ?: DeviceManager.getOrCreateDeviceId(context)
+                    // Use accountId as both source and target to import notes stored under users/{accountId}/notes/{deviceId}
+                    val res = SyncManager.syncDataFromPassphrase(context, accountId, accountId)
+                    if (res.isSuccess) {
+                        // Refresh UI after import
+                        withContext(Dispatchers.Main) { refreshNotes() }
+                    } else {
+                        // ignore failures; AutoSync will handle retries
+                        Log.d("NotesScreen", "One-time remote import returned failure: ${res.exceptionOrNull()?.message}")
+                    }
+                } catch (e: Exception) {
+                    Log.d("NotesScreen", "One-time remote import failed", e)
+                }
+            }
+        }
     }
 
     // Cleanup when screen is disposed
@@ -306,7 +331,18 @@ fun NotesScreen(navController: NavHostController) {
                                             onSyncClick = { syncNotes() }
                                         )
 
-                                        Spacer(modifier = Modifier.width(15.dp))
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        // Sync settings button (updated from Device ID settings)
+                                        IconActionButton(
+                                            onClick = { navController.navigate("syncSettings") },
+                                            icon = Icons.Outlined.QrCode,
+                                            contentDescription = "Sync Settings",
+                                            containerColor = NoteTheme.Secondary.copy(alpha = 0.1f),
+                                            contentColor = NoteTheme.Secondary
+                                        )
+
+                                        Spacer(modifier = Modifier.width(12.dp))
 
                                         // Theme toggle button
                                         ThemeToggleButton(
@@ -401,15 +437,15 @@ fun NotesScreen(navController: NavHostController) {
                             LoadingCard("Loading your notes...", "Please wait a moment")
                         }
 
-                        searchAndSortState.filteredNotes.isEmpty() && searchAndSortState.isSearchActive -> {
+                        searchAndSortState.isSearchActive && searchAndSortState.filteredNotes.isEmpty() -> {
                             EmptyStateCard(
                                 icon = Icons.Outlined.SearchOff,
                                 title = "No results found",
-                                description = "Try adjusting your search terms\nor create a new note",
-                                buttonText = "Create New Note",
+                                description = "Try adjusting your search query or filters.",
+                                buttonText = "Clear Filters",
                                 onButtonClick = {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    navController.navigate("addscreen")
+                                    localSearchQuery = ""
+                                    searchAndSortManager.clearSearch()
                                 }
                             )
                         }

@@ -56,7 +56,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -194,15 +193,12 @@ fun ReminderBottomSheet(
                     ),
                     shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
                     border = BorderStroke(1.dp, NoteTheme.Primary.copy(alpha = 0.1f)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+
                 ) {
                     Column(
                         modifier = Modifier.padding(Constants.PADDING_LARGE.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                        Row {
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
@@ -290,7 +286,6 @@ fun ReminderBottomSheet(
                                 modifier = Modifier.weight(1f)
                             )
                         }
-                        // Fill remaining space if odd number of presets in row
                         if (rowPresets.size == 1) {
                             Spacer(modifier = Modifier.weight(1f))
                         }
@@ -434,9 +429,7 @@ fun ReminderBottomSheet(
                         disabledContentColor = NoteTheme.OnSurfaceVariant.copy(alpha = 0.38f)
                     ),
                     shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = if (isButtonEnabled) 4.dp else 0.dp
-                    )
+
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -546,7 +539,7 @@ private fun PresetButton(
         label = "containerColor"
     )
 
-    OutlinedButton(
+    androidx.compose.material3.OutlinedButton(
         onClick = onClick,
         modifier = modifier
             .scale(buttonScale)
@@ -560,9 +553,7 @@ private fun PresetButton(
             color = if (isSelected) NoteTheme.Primary else NoteTheme.OnSurfaceVariant.copy(alpha = 0.3f)
         ),
         shape = RoundedCornerShape(Constants.CORNER_RADIUS_LARGE.dp),
-        elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = if (isSelected) 4.dp else 0.dp
-        )
+
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,

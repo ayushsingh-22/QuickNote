@@ -3,8 +3,15 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Internet permission for Firebase and sync -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Camera permission for QR scanning -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- Smart Reminders permissions -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
@@ -18,6 +25,7 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
+        android:name=".MyApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"

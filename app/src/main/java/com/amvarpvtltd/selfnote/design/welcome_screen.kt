@@ -160,9 +160,3 @@ private fun isColorDark(color: Color): Boolean {
     return luminance < 0.5
 }
 
-@androidx.compose.ui.tooling.preview.Preview
-@Composable
-fun WelcomeScreenPreview() {
-    val navController = rememberNavController()
-    welcomeScreen(navController = navController)
-}

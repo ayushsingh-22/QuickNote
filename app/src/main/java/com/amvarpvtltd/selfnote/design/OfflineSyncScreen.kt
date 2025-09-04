@@ -55,25 +55,6 @@ fun OfflineSyncScreen(
     val syncStatus by autoSyncManager.lastSyncStatus.collectAsState()
     val pendingNotes by offlineManager.pendingSyncNotes.collectAsState()
 
-    var showSyncAnimation by remember { mutableStateOf(false) }
-
-    // Sync animation control
-    LaunchedEffect(isSyncing) {
-        showSyncAnimation = isSyncing
-    }
-
-    // Animated rotation for sync icon
-    val infiniteTransition = rememberInfiniteTransition(label = "sync_rotation")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "sync_rotation"
-    )
-
     // Manual sync function
     fun startManualSync() {
         if (!isOnline) return
@@ -389,7 +370,7 @@ fun OfflineSyncScreen(
                     OutlinedButton(
                         onClick = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            navController.navigate("noteScreen") {
+                            navController.navigate("main") {
                                 popUpTo("offlineSyncScreen") { inclusive = true }
                             }
                         },

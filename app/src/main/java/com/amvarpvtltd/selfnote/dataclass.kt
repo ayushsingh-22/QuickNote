@@ -26,6 +26,14 @@ data class dataclass(
 
     // Create encrypted version for Firebase with preserved timestamp
     fun toEncryptedData(): dataclass {
+        // Log key preview for debugging
+        try {
+            val preview = EncryptionUtil.getKeyPreview(mymobiledeviceid)
+            Log.d("dataclass", "Encrypting note ${id} using deviceId='${mymobiledeviceid.take(40)}' keyPreview=$preview")
+        } catch (e: Exception) {
+            // ignore logging failures
+        }
+
         return dataclass(
             title = getEncryptedTitle(),
             description = getEncryptedDescription(),

@@ -1,5 +1,6 @@
 package com.amvarpvtltd.selfnote.utils
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import com.amvarpvtltd.selfnote.offline.OfflineNoteManager
@@ -49,6 +50,7 @@ class AutoSyncManager(
         private const val SYNC_RETRY_DELAY = 30_000L // 30 seconds
         private const val MAX_RETRY_ATTEMPTS = 3
 
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: AutoSyncManager? = null
 

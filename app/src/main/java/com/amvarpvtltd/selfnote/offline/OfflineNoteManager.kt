@@ -244,4 +244,18 @@ class OfflineNoteManager(context: Context) {
             }
         }
     }
+
+    // Reassign all local notes to a new deviceId and mark them pending sync
+    suspend fun reassignDeviceId(newDeviceId: String) {
+        withContext(Dispatchers.IO) {
+            val all = noteDao.getAllNotes()
+            all.forEach { entity ->
+                val updated = entity.copy(mymobiledeviceid = newDeviceId, synced = false)
+                noteDao.update(updated)
+            }
+        }
+        refreshLocalNotes()
+        refreshPendingNotes()
+        Log.d(TAG, "Reassigned ${offlineNotes.value.size} notes to new deviceId")
+    }
 }

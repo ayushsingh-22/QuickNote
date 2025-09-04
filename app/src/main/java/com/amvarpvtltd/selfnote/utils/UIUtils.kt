@@ -47,7 +47,4 @@ object UIUtils {
             stiffness = Spring.StiffnessMedium
         )
     }
-
-
-
 }
