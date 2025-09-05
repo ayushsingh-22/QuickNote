@@ -14,12 +14,13 @@ object UIUtils {
 
     /**
      * Get color based on character count progress
+     * Now accepts maxLength so the red/error threshold is compared against the correct field limit.
      */
-    fun getProgressColor(currentLength: Int): Color {
+    fun getProgressColor(currentLength: Int, maxLength: Int): Color {
         return when {
             currentLength < Constants.WARNING_LENGTH -> Color(0xFF64748B) // Gray
             currentLength < Constants.MIN_CONTENT_LENGTH -> Color(0xFFF59E0B) // Warning/Orange
-            currentLength >= Constants.TITLE_MAX_LENGTH || currentLength >= Constants.DESCRIPTION_MAX_LENGTH -> Color(0xFFEF4444) // Error/Red
+            currentLength >= maxLength -> Color(0xFFEF4444) // Error/Red when current reaches the provided max
             else -> Color(0xFF10B981) // Success/Green
         }
     }

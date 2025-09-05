@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.amvarpvtltd.selfnote.design.NoteTheme
 import com.amvarpvtltd.selfnote.utils.Constants
 import com.amvarpvtltd.selfnote.utils.UIUtils
+import androidx.compose.ui.graphics.luminance
 
 @Composable
 fun ActionButton(
@@ -82,6 +83,30 @@ fun ActionButton(
             isPressed = false
         }
     }
+}
+
+/**
+ * Compute adaptive container and content colors for small icon buttons so they remain readable
+ * against the provided background. Returns Pair(containerColor, contentColor).
+ *
+ * - background: the screen/background color to test luminance against
+ * - accent: preferred accent color for the icon (e.g. NoteTheme.Secondary)
+ */
+fun adaptiveIconColors(background: Color, accent: Color): Pair<Color, Color> {
+    val bgIsLight = background.luminance() > 0.5f
+    // Slightly stronger container on dark backgrounds to improve visibility
+    val containerAlpha = if (bgIsLight) 0.10f else 0.16f
+    val container = accent.copy(alpha = containerAlpha)
+
+    // Content color: prefer accent when it contrasts enough, otherwise use white/black
+    val accentIsContrasting = if (bgIsLight) accent.luminance() < 0.6f else accent.luminance() > 0.4f
+    val content = when {
+        accentIsContrasting -> accent
+        bgIsLight -> Color.Black.copy(alpha = 0.9f)
+        else -> Color.White.copy(alpha = 0.95f)
+    }
+
+    return Pair(container, content)
 }
 
 @Composable

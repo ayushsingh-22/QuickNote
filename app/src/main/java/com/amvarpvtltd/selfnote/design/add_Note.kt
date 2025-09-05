@@ -49,6 +49,7 @@ import com.amvarpvtltd.selfnote.utils.UIUtils
 import com.amvarpvtltd.selfnote.utils.Constants
 import com.amvarpvtltd.selfnote.ai.DetectedReminder
 import com.amvarpvtltd.selfnote.ai.SmartReminderAI
+import com.amvarpvtltd.selfnote.components.BackgroundProvider
 import com.amvarpvtltd.selfnote.reminders.ReminderManager
 import kotlinx.coroutines.delay
 import java.util.UUID
@@ -88,17 +89,21 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     var currentTheme by themeState
 
     val titleProgress = UIUtils.calculateProgress(title.length, Constants.TITLE_MAX_LENGTH)
-    val descriptionProgress =
-        UIUtils.calculateProgress(description.length, Constants.DESCRIPTION_MAX_LENGTH)
+
+    // Clamp lengths to the respective max to avoid incorrect thresholds for extremely large inputs
+    val safeTitleLength = title.length.coerceAtMost(Constants.TITLE_MAX_LENGTH)
+    val safeDescriptionLength = description.length.coerceAtMost(Constants.DESCRIPTION_MAX_LENGTH)
+
+    val descriptionProgress = UIUtils.calculateProgress(safeDescriptionLength, Constants.DESCRIPTION_MAX_LENGTH)
 
     val titleCountColor by animateColorAsState(
-        targetValue = UIUtils.getProgressColor(title.length),
+        targetValue = UIUtils.getProgressColor(safeTitleLength, Constants.TITLE_MAX_LENGTH),
         animationSpec = UIUtils.getColorAnimationSpec(),
         label = "title_count_color"
     )
 
     val descCountColor by animateColorAsState(
-        targetValue = UIUtils.getProgressColor(description.length),
+        targetValue = UIUtils.getProgressColor(safeDescriptionLength, Constants.DESCRIPTION_MAX_LENGTH),
         animationSpec = UIUtils.getColorAnimationSpec(),
         label = "desc_count_color"
     )
@@ -114,7 +119,60 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     LaunchedEffect(title, description) {
         val combinedText = "$title. $description".trim()
 
+        // Run minute-pattern fallback first (don't depend on hasReminderKeywords)
+        try {
+            val minuteRegex = Regex("\\b(\\d{1,3})\\s*(?:min|mins|minm|minute|minutes)\\s*(?:mai|mein)?\\b", RegexOption.IGNORE_CASE)
+            val match = minuteRegex.find(combinedText)
+            if (match != null) {
+                val n = match.groupValues[1].toIntOrNull()
+                if (n != null && n > 0) {
+                    val cal = java.util.Calendar.getInstance()
+                    cal.add(java.util.Calendar.MINUTE, n)
+                    val ts = cal.timeInMillis
+                    val snippet = match.value.trim()
+                    val detected = com.amvarpvtltd.selfnote.ai.DetectedReminder(
+                        id = java.util.UUID.randomUUID().toString(),
+                        title = "⏱️ Reminder in $n min",
+                        description = "Auto-detected: $snippet",
+                        extractedText = snippet,
+                        reminderDateTime = ts,
+                        confidence = 0.8f,
+                        entityType = "MinuteFallback",
+                        originalNoteTitle = title.ifBlank { "Untitled" }
+                    )
+
+                    if (isEditing && noteId != null) {
+                        scope.launch(Dispatchers.IO) {
+                            try {
+                                val success = reminderManager.createReminderFromDetection(detected, noteId)
+                                if (success) {
+                                    detectedReminders = listOf(detected)
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "🤖 Auto-created 1 smart reminder", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e("AddScreen", "Error creating minute-fallback reminder", e)
+                            }
+                        }
+                    } else {
+                        pendingReminders = listOf(detected)
+                        detectedReminders = listOf(detected)
+                        Toast.makeText(context, "🤖 Suggestion: reminder in $n min", Toast.LENGTH_SHORT).show()
+                        Log.d("AddScreen", "Minute-fallback pending reminder stored: $n minutes")
+                        Log.d("AddScreen", "📝 Stored 1 pending minute-fallback reminder for new note")
+                    }
+
+                    return@LaunchedEffect
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AddScreen", "Error in minute fallback detection (pre-check)", e)
+        }
+
+        // Only run analysis when the AI's keyword detector finds relevant English/Hinglish keywords
         if (smartReminderAI.hasReminderKeywords(combinedText)) {
+
             scope.launch {
                 delay(1500) // Debounce to avoid excessive API calls
 
@@ -125,8 +183,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         val reminders = result.getOrNull() ?: emptyList()
                         if (reminders.isNotEmpty()) {
                             // For existing notes, create reminders immediately
-                            if (isEditing &&
-                                noteId != null) {
+                            if (isEditing && noteId != null) {
                                 var createdCount = 0
                                 reminders.forEach { reminder ->
                                     if (reminder.confidence >= 0.6f) {
@@ -159,7 +216,13 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                     Log.d("AddScreen", "📝 Stored ${highConfidenceReminders.size} pending reminders for new note")
                                 }
                             }
+                        } else {
+                            // If analysis ran but found nothing, clear previous
+                            detectedReminders = emptyList()
+                            // keep pendingReminders untouched if already set by prior analysis
                         }
+                    } else {
+                        Log.w("AddScreen", "SmartReminderAI analysis failed: ${result.exceptionOrNull()?.message}")
                     }
                 } catch (e: Exception) {
                     Log.e("AddScreen", "Error analyzing text for reminders", e)
@@ -223,7 +286,37 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                        val savedNoteId = result.getOrNull()
                        val finalNoteId = savedNoteId ?: noteId
 
-                       // (keep pending reminders creation code here)
+                       // Create any pending smart reminders for newly saved notes
+                       if (finalNoteId != null && pendingReminders.isNotEmpty()) {
+                          var createdCount = 0
+                          try {
+                              withContext(Dispatchers.IO) {
+                                  pendingReminders.forEach { reminder ->
+                                      if (reminder.confidence >= 0.6f) {
+                                          try {
+                                              val success = reminderManager.createReminderFromDetection(reminder, finalNoteId)
+                                              if (success) createdCount++
+                                          } catch (e: Exception) {
+                                              Log.e("AddScreen", "❌ Error creating pending smart reminder", e)
+                                          }
+                                      }
+                                  }
+                              }
+
+                              if (createdCount > 0) {
+                                  // Clear pending reminders and update detected list for UI
+                                  detectedReminders = pendingReminders.filter { it.confidence >= 0.6f }
+                                  pendingReminders = emptyList()
+                                  Toast.makeText(
+                                      context,
+                                      "🤖 Auto-created $createdCount smart reminder${if (createdCount > 1) "s" else ""}",
+                                      Toast.LENGTH_SHORT
+                                  ).show()
+                              }
+                          } catch (e: Exception) {
+                              Log.e("AddScreen", "Error creating pending reminders after save", e)
+                          }
+                       }
 
                        val networkManager = com.amvarpvtltd.selfnote.utils.NetworkManager.getInstance(context)
                        val isOnline = networkManager.isConnected()
@@ -292,13 +385,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     }
 
     // Background gradient
-    val backgroundBrush = Brush.verticalGradient(
-        colors = listOf(
-            NoteTheme.Background,
-            NoteTheme.SurfaceVariant.copy(alpha = 0.3f),
-            NoteTheme.Background
-        )
-    )
+    val backgroundBrush = BackgroundProvider.getBrush()
 
     // Enhanced delete confirmation dialog
     if (showDeleteDialog) {
@@ -800,7 +887,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                 placeholder = {
                                     Text(
                                         "Enter a compelling title...",
-                                        color = NoteTheme.OnSurfaceVariant
+                                        color = NoteTheme.OnSurfaceVariant.copy(alpha = 0.5f)
                                     )
                                 },
                                 singleLine = true,
@@ -932,7 +1019,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                                 placeholder = {
                                     Text(
                                         "Write your thoughts here...\n\nExpress your ideas, capture important information, or jot down anything that comes to mind.",
-                                        color = NoteTheme.OnSurfaceVariant
+                                        color = NoteTheme.OnSurfaceVariant.copy(alpha = 0.5f)
                                     )
                                 },
                                 colors = OutlinedTextFieldDefaults.colors(

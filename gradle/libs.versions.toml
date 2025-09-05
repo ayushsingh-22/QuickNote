@@ -19,12 +19,13 @@ workRuntime = "2.10.0"
 lifecycle = "2.8.7"
 # Fix ML Kit versions - use available versions
 playServicesMLKit = "16.0.0-beta4"
-mlkitEntityExtraction = "16.0.0-beta6"
+mlkitEntityExtraction = "16.0.0-beta5"
 # Add Material3 version for XML themes
 material = "1.12.0"
 # New: CameraX, ML Kit Barcode, ZXing
-camerax = "1.3.4"
+camerax = "1.4.0"
 mlkitBarcode = "17.3.0"
+playServicesMlkitBarcode = "18.3.1"
 zxing = "3.5.1"
 concurrentFutures = "1.2.0"
 foundation = "1.9.0"
@@ -55,6 +56,7 @@ androidx-tv-material = { group = "androidx.tv", name = "tv-material", version = 
 # ML Kit dependencies - Only keep the ones actually being used
 mlkit-entity-extraction = { group = "com.google.mlkit", name = "entity-extraction", version.ref = "mlkitEntityExtraction" }
 mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
+play-services-mlkit-barcode-scanning = { group = "com.google.android.gms", name = "play-services-mlkit-barcode-scanning", version.ref = "playServicesMlkitBarcode" }
 
 # Firebase - managed by BOM
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }

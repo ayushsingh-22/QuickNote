@@ -10,13 +10,6 @@ object DeviceManager {
         return DeviceIdManager.getOrCreateDeviceId(context)
     }
 
-    fun getStoredDeviceId(context: Context): String? {
-        return DeviceIdManager.getStoredDeviceId(context)
-    }
-
-    fun clearDeviceId(context: Context) {
-        DeviceIdManager.clearDeviceId(context)
-    }
 
     /**
      * Mark that onboarding/first-launch completed. Delegates to DeviceIdManager.

@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
-import androidx.compose.material.icons.outlined.QrCode
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,6 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.amvarpvtltd.selfnote.auth.DeviceManager
+import com.amvarpvtltd.selfnote.auth.PassphraseManager
 import com.amvarpvtltd.selfnote.components.AnimatedFloatingActionButton
 import com.amvarpvtltd.selfnote.components.EmptyStateCard
 import com.amvarpvtltd.selfnote.components.IconActionButton
@@ -62,6 +64,7 @@ import com.amvarpvtltd.selfnote.components.rememberViewModeState
 import com.amvarpvtltd.selfnote.dataclass
 import com.amvarpvtltd.selfnote.repository.NoteRepository
 import com.amvarpvtltd.selfnote.search.rememberSearchAndSortManager
+import com.amvarpvtltd.selfnote.sync.SyncManager
 import com.amvarpvtltd.selfnote.theme.ProvideNoteTheme
 import com.amvarpvtltd.selfnote.theme.rememberThemeState
 import com.amvarpvtltd.selfnote.ui.theme.Lobster_Font
@@ -72,9 +75,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.amvarpvtltd.selfnote.auth.DeviceManager
-import com.amvarpvtltd.selfnote.auth.PassphraseManager
-import com.amvarpvtltd.selfnote.sync.SyncManager
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -333,14 +333,17 @@ fun NotesScreen(navController: NavHostController) {
 
                                         Spacer(modifier = Modifier.width(12.dp))
 
-                                        // Sync settings button (updated from Device ID settings)
-                                        IconActionButton(
-                                            onClick = { navController.navigate("syncSettings") },
-                                            icon = Icons.Outlined.QrCode,
-                                            contentDescription = "Sync Settings",
-                                            containerColor = NoteTheme.Secondary.copy(alpha = 0.1f),
-                                            contentColor = NoteTheme.Secondary
-                                        )
+                                        // Sync settings button (adaptive colors)
+                                        run {
+                                            val (syncContainer, syncContent) = com.amvarpvtltd.selfnote.components.adaptiveIconColors(NoteTheme.Background, NoteTheme.Secondary)
+                                            IconActionButton(
+                                                onClick = { navController.navigate("syncSettings") },
+                                                icon = Icons.Outlined.Person,
+                                                contentDescription = "Sync Settings",
+                                                containerColor = syncContainer,
+                                                contentColor = syncContent
+                                            )
+                                        }
 
                                         Spacer(modifier = Modifier.width(12.dp))
 
@@ -402,17 +405,20 @@ fun NotesScreen(navController: NavHostController) {
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            // Sort button
-                            IconActionButton(
-                                onClick = {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    showSortSheet = true
-                                },
-                                icon = Icons.AutoMirrored.Outlined.Sort,
-                                contentDescription = "Sort",
-                                containerColor = NoteTheme.Secondary.copy(alpha = 0.1f),
-                                contentColor = NoteTheme.Secondary
-                            )
+                            // Sort button (adaptive colors)
+                            run {
+                                val (sortContainer, sortContent) = com.amvarpvtltd.selfnote.components.adaptiveIconColors(NoteTheme.Background, NoteTheme.Secondary)
+                                IconActionButton(
+                                    onClick = {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        showSortSheet = true
+                                    },
+                                    icon = Icons.AutoMirrored.Outlined.Sort,
+                                    contentDescription = "Sort",
+                                    containerColor = sortContainer,
+                                    contentColor = sortContent
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -489,50 +495,50 @@ fun NotesScreen(navController: NavHostController) {
                 }
             }
         }
-    }
 
-    // Sort options sheet
-    if (showSortSheet) {
-        SortOptionsSheet(
-            currentSort = searchAndSortState.sortOption,
-            onSortChange = { sortOption ->
-                searchAndSortManager.updateSortOption(sortOption)
-            },
-            onDismiss = { showSortSheet = false }
-        )
-    }
+        // Sort options sheet
+        if (showSortSheet) {
+            SortOptionsSheet(
+                currentSort = searchAndSortState.sortOption,
+                onSortChange = { sortOption ->
+                    searchAndSortManager.updateSortOption(sortOption)
+                },
+                onDismiss = { showSortSheet = false }
+            )
+        }
 
-    // Reminder sheet
-    if (showReminderSheet && selectedNoteForReminder != null) {
-        com.amvarpvtltd.selfnote.components.ReminderBottomSheet(
-            isVisible = showReminderSheet,
-            noteId = selectedNoteForReminder!!.id,
-            noteTitle = selectedNoteForReminder!!.title,
-            noteDescription = selectedNoteForReminder!!.description,
-            onDismiss = {
-                showReminderSheet = false
-                selectedNoteForReminder = null
-            },
-            onReminderSet = { reminderRequest ->
-                scope.launch(Dispatchers.IO) {
-                    try {
-                        val result = reminderRepository.createReminder(reminderRequest)
-                        withContext(Dispatchers.Main) {
-                            if (result.isSuccess) {
-                                Toast.makeText(context, "⏰ Reminder set successfully!", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "❌ Failed to set reminder", Toast.LENGTH_SHORT).show()
+        // Reminder sheet
+        if (showReminderSheet && selectedNoteForReminder != null) {
+            com.amvarpvtltd.selfnote.components.ReminderBottomSheet(
+                isVisible = showReminderSheet,
+                noteId = selectedNoteForReminder!!.id,
+                noteTitle = selectedNoteForReminder!!.title,
+                noteDescription = selectedNoteForReminder!!.description,
+                onDismiss = {
+                    showReminderSheet = false
+                    selectedNoteForReminder = null
+                },
+                onReminderSet = { reminderRequest ->
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val result = reminderRepository.createReminder(reminderRequest)
+                            withContext(Dispatchers.Main) {
+                                if (result.isSuccess) {
+                                    Toast.makeText(context, "⏰ Reminder set successfully!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "❌ Failed to set reminder", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "❌ Error setting reminder", Toast.LENGTH_SHORT).show()
                             }
                         }
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "❌ Error setting reminder", Toast.LENGTH_SHORT).show()
-                        }
                     }
+                    showReminderSheet = false
+                    selectedNoteForReminder = null
                 }
-                showReminderSheet = false
-                selectedNoteForReminder = null
-            }
-        )
+            )
+        }
     }
 }

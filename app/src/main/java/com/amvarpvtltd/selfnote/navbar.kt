@@ -60,42 +60,6 @@ fun MyApp() {
                 return@LaunchedEffect
             }
 
-            // Fallback: check old device ID system for backward compatibility
-//            val storedId = com.amvarpvtltd.selfnote.auth.AuthManager.getStoredDeviceId(context)
-//            if (!storedId.isNullOrEmpty()) {
-//                myGlobalMobileDeviceId = storedId
-//                Log.d("MyApp", "✅ Found legacy device ID, going to main screen")
-//                startDestination = "main"
-//                isInitializing = false
-//                return@LaunchedEffect
-//            }
-
-            // Check if we have local notes without a stored passphrase
-//            Log.d("MyApp", "📱 Checking local database...")
-//            val offlineNotes = withContext(Dispatchers.IO) { offlineManager.getAllNotes() }
-//            Log.d("MyApp", "📱 Found ${offlineNotes.size} notes in local database")
-
-//            if (offlineNotes.isNotEmpty()) {
-//                // Existing user without passphrase: migrate to new system
-//                Log.d("MyApp", "🔧 Migrating existing local data to new passphrase system")
-//                val newPassphrase = com.amvarpvtltd.selfnote.auth.PassphraseManager.generatePassphrase()
-//                val storeResult = com.amvarpvtltd.selfnote.auth.PassphraseManager.storePassphrase(context, newPassphrase)
-//
-//                if (storeResult.isSuccess) {
-//                    myGlobalMobileDeviceId = newPassphrase
-//                    // Upload existing notes to Firebase
-//                    withContext(Dispatchers.IO) {
-//                        com.amvarpvtltd.selfnote.sync.SyncManager.uploadLocalDataToFirebase(context, newPassphrase)
-//                    }
-//                    startDestination = "main"
-//                } else {
-//                    Log.w("MyApp", "Failed to migrate to passphrase system, showing onboarding")
-//                    startDestination = "onboarding"
-//                }
-//                isInitializing = false
-//                return@LaunchedEffect
-//            }
-
             // No local data and no stored credentials: check if this device id has data on Firebase (reinstall case)
             try {
                 val deviceId = DeviceManager.getOrCreateDeviceId(context)

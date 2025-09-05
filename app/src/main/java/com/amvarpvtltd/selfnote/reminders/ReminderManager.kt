@@ -89,7 +89,10 @@ class ReminderManager private constructor(private val context: Context) {
         return@withContext try {
             // Check if we can schedule exact alarms
             if (!canScheduleExactAlarms()) {
-                return@withContext Result.failure(Exception("Exact alarm permission not granted"))
+                // Don't fail hard if exact alarm permission isn't granted. Persist the reminder
+                // and schedule a best-effort alarm. This ensures reminders are created even when
+                // the system restricts exact alarms (app may request permission separately).
+                Log.w(TAG, "⚠️ Exact alarm permission not granted — falling back to best-effort scheduling")
             }
 
             // Save reminder to database - Fixed field names to match ReminderEntity
@@ -121,19 +124,32 @@ class ReminderManager private constructor(private val context: Context) {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            // Schedule exact alarm
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    reminder.reminderDateTime,
-                    pendingIntent
-                )
-            } else {
-                alarmManager.setExact(
-                    AlarmManager.RTC_WAKEUP,
-                    reminder.reminderDateTime,
-                    pendingIntent
-                )
+            // Schedule exact alarm if possible, otherwise schedule a best-effort alarm
+            try {
+                if (canScheduleExactAlarms()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.RTC_WAKEUP,
+                            reminder.reminderDateTime,
+                            pendingIntent
+                        )
+                    } else {
+                        alarmManager.setExact(
+                            AlarmManager.RTC_WAKEUP,
+                            reminder.reminderDateTime,
+                            pendingIntent
+                        )
+                    }
+                } else {
+                    // Best-effort fallback using set which may be inexact but still fires
+                    alarmManager.set(
+                        AlarmManager.RTC_WAKEUP,
+                        reminder.reminderDateTime,
+                        pendingIntent
+                    )
+                }
+            } catch (e: SecurityException) {
+                Log.w(TAG, "⚠️ SecurityException scheduling alarm, skipping alarm scheduling: ${e.message}")
             }
 
             val formatter = SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault())

@@ -53,13 +53,7 @@ fun NoteScreenBackground(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        NoteTheme.Background,
-                        NoteTheme.SurfaceVariant.copy(alpha = 0.3f),
-                        NoteTheme.Background
-                    )
-                )
+                brush = BackgroundProvider.getBrush()
             )
     ) {
         content()
