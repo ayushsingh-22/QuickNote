@@ -2,8 +2,18 @@ package com.amvarpvtltd.selfnote
 
 import android.app.Application
 import com.google.firebase.FirebaseApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import android.util.Log
 
 class MyApplication : Application() {
+    companion object {
+        private const val TAG = "MyApplication"
+        private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    }
+
     override fun onCreate() {
         super.onCreate()
         FirebaseApp.initializeApp(this)
@@ -17,6 +27,33 @@ class MyApplication : Application() {
         } catch (e: Exception) {
             // If anything fails, fallback to a random UUID
             myGlobalMobileDeviceId = java.util.UUID.randomUUID().toString()
+        }
+
+        Log.d(TAG, "MyApplication initialized")
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        Log.d(TAG, "MyApplication terminating")
+        // Note: onTerminate() is only called in emulated environments
+        // Real cleanup happens through the UninstallCleanupReceiver
+    }
+
+    /**
+     * Manually trigger data cleanup (for testing or manual reset)
+     */
+    fun clearAllAppData() {
+        applicationScope.launch {
+            try {
+                val result = com.amvarpvtltd.selfnote.cleanup.DataCleanupManager.clearAllAppData(applicationContext)
+                if (result.isSuccess) {
+                    Log.i(TAG, "✅ Manual app data cleanup successful")
+                } else {
+                    Log.e(TAG, "❌ Manual app data cleanup failed: ${result.exceptionOrNull()?.message}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Manual cleanup operation failed", e)
+            }
         }
     }
 }

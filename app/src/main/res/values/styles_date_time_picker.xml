@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Light overlay used for DatePickerDialog and TimePickerDialog -->
+    <style name="ThemeOverlay_QuickNote_DateTimePicker_Light" parent="Theme.Material3.Light.Dialog.Alert">
+        <!-- Colors -->
+        <item name="colorPrimary">@color/md_theme_light_primary</item>
+        <item name="colorOnPrimary">@color/md_theme_light_onPrimary</item>
+        <item name="colorSurface">@color/md_theme_light_surface</item>
+        <item name="colorOnSurface">@color/md_theme_light_onSurface</item>
+
+        <!-- Ensure dialog text is dark on light background -->
+        <item name="android:textColorPrimary">@color/md_theme_light_onSurface</item>
+        <item name="android:textColorSecondary">@color/md_theme_light_onSurface</item>
+        <item name="android:colorAccent">@color/md_theme_light_primary</item>
+
+        <!-- Avoid referencing private platform attributes; use public styles only -->
+    </style>
+
+    <!-- Dark overlay used for DatePickerDialog and TimePickerDialog -->
+    <style name="ThemeOverlay_QuickNote_DateTimePicker_Dark" parent="Theme.Material3.Dark.Dialog.Alert">
+        <item name="colorPrimary">@color/md_theme_dark_primary</item>
+        <item name="colorOnPrimary">@color/md_theme_dark_onPrimary</item>
+        <item name="colorSurface">@color/md_theme_dark_surface</item>
+        <item name="colorOnSurface">@color/md_theme_dark_onSurface</item>
+
+        <!-- Ensure dialog text is light on dark background -->
+        <item name="android:textColorPrimary">@color/md_theme_dark_onSurface</item>
+        <item name="android:textColorSecondary">@color/md_theme_dark_onSurface</item>
+        <item name="android:colorAccent">@color/md_theme_dark_primary</item>
+
+        <!-- Avoid referencing private platform attributes; use public styles only -->
+    </style>
+
+</resources>

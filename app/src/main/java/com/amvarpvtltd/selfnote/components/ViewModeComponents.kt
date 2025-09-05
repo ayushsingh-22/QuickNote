@@ -100,6 +100,9 @@ fun ViewModeToggleButton(
     val hapticFeedback = LocalHapticFeedback.current
     val context = LocalContext.current
 
+    // Compute adaptive colors based on current background and secondary accent
+    val (containerColor, contentColor) = adaptiveIconColors(NoteTheme.Background, NoteTheme.Secondary)
+
     Card(
         modifier = modifier
             .clickable {
@@ -116,7 +119,7 @@ fun ViewModeToggleButton(
             },
         shape = CircleShape,
         colors = CardDefaults.cardColors(
-            containerColor = NoteTheme.Secondary.copy(alpha = 0.1f)
+            containerColor = containerColor
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -127,7 +130,7 @@ fun ViewModeToggleButton(
             Icon(
                 imageVector = ViewModeManager.getViewModeIcon(currentViewMode),
                 contentDescription = ViewModeManager.getViewModeLabel(currentViewMode),
-                tint = NoteTheme.Secondary,
+                tint = contentColor,
                 modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
             )
         }

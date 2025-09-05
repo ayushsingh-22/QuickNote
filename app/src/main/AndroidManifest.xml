@@ -26,15 +26,26 @@
 
     <application
         android:name=".MyApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@drawable/go"
+        android:icon="@drawable/logo2"
         android:label="@string/app_name"
-        android:roundIcon="@drawable/go"
+        android:roundIcon="@drawable/logo2"
         android:supportsRtl="true"
         android:theme="@style/Theme.SelfNote"
         tools:targetApi="31">
+
+        <!-- 16KB Page Size Compatibility -->
+        <meta-data
+            android:name="android.app.lib_name"
+            android:value="quicknote" />
+        <meta-data
+            android:name="android.max_aspect"
+            android:value="2.4" />
+        <meta-data
+            android:name="android.supports_16kb_page_size"
+            android:value="true" />
 
         <activity
             android:name=".MainActivity"
@@ -66,10 +77,25 @@
             </intent-filter>
         </receiver>
 
+        <!-- Data cleanup receiver for app uninstall -->
+        <receiver
+            android:name=".cleanup.UninstallCleanupReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.PACKAGE_DATA_CLEARED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
         <!-- ML Kit metadata for Entity Extraction -->
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="entity_extraction" />
+
+        <receiver android:name=".notifications.NotificationActionReceiver"
+            android:exported="false" />
 
     </application>
 

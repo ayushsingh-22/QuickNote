@@ -320,6 +320,9 @@ fun ThemeToggleButton(
     val hapticFeedback = LocalHapticFeedback.current
     val context = LocalContext.current
 
+    // Use adaptive colors for consistency with other buttons
+    val (containerColor, contentColor) = adaptiveIconColors(NoteTheme.Background, NoteTheme.Secondary)
+
     Card(
         modifier = modifier
             .clickable {
@@ -342,7 +345,7 @@ fun ThemeToggleButton(
             },
         shape = CircleShape,
         colors = CardDefaults.cardColors(
-            containerColor = NoteTheme.Primary.copy(alpha = 0.1f)
+            containerColor = containerColor
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -359,7 +362,7 @@ fun ThemeToggleButton(
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = NoteTheme.Primary,
+                tint = contentColor,
                 modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
             )
         }
@@ -383,6 +386,13 @@ fun SyncStatusIndicator(
         exit = scaleOut() + fadeOut(),
         modifier = modifier
     ) {
+        // Determine adaptive colors using background luminance so icon remains visible
+        val (containerColor, contentColor) = when {
+            isSyncing -> Pair(NoteTheme.Primary.copy(alpha = 0.1f), NoteTheme.Primary)
+            !isOnline -> adaptiveIconColors(NoteTheme.Background, NoteTheme.Error)
+            else -> adaptiveIconColors(NoteTheme.Background, NoteTheme.Warning)
+        }
+
         Card(
             modifier = Modifier
                 .clickable(enabled = !isSyncing && hasPendingSync) {
@@ -390,11 +400,7 @@ fun SyncStatusIndicator(
                     onSyncClick()
                 },
             colors = CardDefaults.cardColors(
-                containerColor = when {
-                    isSyncing -> NoteTheme.Primary.copy(alpha = 0.1f)
-                    !isOnline -> NoteTheme.Error.copy(alpha = 0.1f)
-                    else -> NoteTheme.Warning.copy(alpha = 0.1f)
-                }
+                containerColor = containerColor
             ),
             shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
         ) {
@@ -407,13 +413,13 @@ fun SyncStatusIndicator(
                     CircularProgressIndicator(
                         modifier = Modifier.size(Constants.ICON_SIZE_SMALL.dp),
                         strokeWidth = 2.dp,
-                        color = NoteTheme.Primary
+                        color = contentColor
                     )
                 } else {
                     Icon(
                         imageVector = if (isOnline) Icons.Outlined.CloudSync else Icons.Outlined.CloudOff,
                         contentDescription = if (isOnline) "Sync pending" else "Offline",
-                        tint = if (isOnline) NoteTheme.Warning else NoteTheme.Error,
+                        tint = contentColor,
                         modifier = Modifier.size(Constants.ICON_SIZE_SMALL.dp)
                     )
                 }
@@ -427,11 +433,7 @@ fun SyncStatusIndicator(
                         else -> "Sync"
                     },
                     style = MaterialTheme.typography.labelSmall,
-                    color = when {
-                        isSyncing -> NoteTheme.Primary
-                        !isOnline -> NoteTheme.Error
-                        else -> NoteTheme.Warning
-                    },
+                    color = contentColor,
                     fontWeight = FontWeight.Medium
                 )
             }

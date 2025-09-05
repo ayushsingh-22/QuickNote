@@ -64,7 +64,7 @@ object ShareUtils {
                 appendLine(note.description.trim())
                 appendLine()
             } else {
-                appendLine("📌 Description: (No details provided)")
+                appendLine("")
                 appendLine()
             }
 

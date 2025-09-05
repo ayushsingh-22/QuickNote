@@ -3,9 +3,12 @@ package com.amvarpvtltd.selfnote.design
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,6 +17,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -22,19 +28,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executors
+import com.amvarpvtltd.selfnote.design.NoteTheme
+import com.amvarpvtltd.selfnote.components.BackgroundProvider
 
 @Composable
 fun QRScannerSection(
     onQRScanned: (String) -> Unit,
     onCancel: () -> Unit
 ) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+//    val context = LocalContext.current
+//    val lifecycleOwner = LocalLifecycleOwner.current
     var hasCameraPermission by remember { mutableStateOf(false) }
     var isScanning by remember { mutableStateOf(false) }
 
@@ -111,13 +120,13 @@ fun QRScannerSection(
     }
 }
 
+@OptIn(ExperimentalGetImage::class)
 @Composable
 fun QRScannerDialog(
     onQRScanned: (String) -> Unit,
     onCancel: () -> Unit
 ) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var hasScanned by remember { mutableStateOf(false) }
 
     Dialog(
@@ -128,123 +137,136 @@ fun QRScannerDialog(
             usePlatformDefaultWidth = false
         )
     ) {
-        Card(
+        // Use the shared background so dialog feels part of the app
+        Box(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.8f),
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                .fillMaxSize()
+                .background(brush = BackgroundProvider.getBrush()),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .fillMaxHeight(0.8f),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = NoteTheme.Surface)
             ) {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Text(
-                        text = "Scan QR Code",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = onCancel) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close"
+                    // Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Scan QR Code",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = NoteTheme.OnSurface
                         )
+                        IconButton(onClick = onCancel) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = NoteTheme.OnSurface
+                            )
+                        }
                     }
-                }
 
-                // Camera Preview
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 16.dp)
-                ) {
-                    AndroidView(
-                        factory = { ctx ->
-                            PreviewView(ctx).apply {
-                                val cameraController = LifecycleCameraController(ctx)
-                                cameraController.bindToLifecycle(lifecycleOwner)
-                                cameraController.cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                    // Camera Preview
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Transparent)
+                    ) {
+                        AndroidView(
+                            factory = { ctx ->
+                                PreviewView(ctx).apply {
+                                    val cameraController = LifecycleCameraController(ctx)
+                                    cameraController.bindToLifecycle(lifecycleOwner)
+                                    cameraController.cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-                                // Set up barcode analysis
-                                val options = BarcodeScannerOptions.Builder()
-                                    .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                                    .build()
-                                val scanner = BarcodeScanning.getClient(options)
+                                    // Set up barcode analysis
+                                    val options = BarcodeScannerOptions.Builder()
+                                        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                                        .build()
+                                    val scanner = BarcodeScanning.getClient(options)
 
-                                cameraController.setImageAnalysisAnalyzer(
-                                    Executors.newSingleThreadExecutor()
-                                ) { imageProxy ->
-                                    if (!hasScanned) {
-                                        val mediaImage = imageProxy.image
-                                        if (mediaImage != null) {
-                                            val image = InputImage.fromMediaImage(
-                                                mediaImage,
-                                                imageProxy.imageInfo.rotationDegrees
-                                            )
-                                            scanner.process(image)
-                                                .addOnSuccessListener { barcodes ->
-                                                    for (barcode in barcodes) {
-                                                        barcode.rawValue?.let { value ->
-                                                            if (!hasScanned) {
-                                                                hasScanned = true
-                                                                onQRScanned(value)
+                                    cameraController.setImageAnalysisAnalyzer(
+                                        Executors.newSingleThreadExecutor()
+                                    ) { imageProxy ->
+                                        if (!hasScanned) {
+                                            val mediaImage = imageProxy.image
+                                            if (mediaImage != null) {
+                                                val image = InputImage.fromMediaImage(
+                                                    mediaImage,
+                                                    imageProxy.imageInfo.rotationDegrees
+                                                )
+                                                scanner.process(image)
+                                                    .addOnSuccessListener { barcodes ->
+                                                        for (barcode in barcodes) {
+                                                            barcode.rawValue?.let { value ->
+                                                                if (!hasScanned) {
+                                                                    hasScanned = true
+                                                                    onQRScanned(value)
+                                                                }
                                                             }
                                                         }
                                                     }
-                                                }
-                                                .addOnCompleteListener {
-                                                    imageProxy.close()
-                                                }
+                                                    .addOnCompleteListener {
+                                                        imageProxy.close()
+                                                    }
+                                            } else {
+                                                imageProxy.close()
+                                            }
                                         } else {
                                             imageProxy.close()
                                         }
-                                    } else {
-                                        imageProxy.close()
                                     }
+
+                                    controller = cameraController
                                 }
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
 
-                                controller = cameraController
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
-
-                    // Scanning overlay
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Card(
-                            modifier = Modifier.size(250.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                2.dp,
-                                MaterialTheme.colorScheme.primary
-                            )
-                        ) {}
+                        // Scanning overlay (theme aware)
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Card(
+                                modifier = Modifier.size(250.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = NoteTheme.SurfaceVariant.copy(alpha = 0.25f)
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    2.dp,
+                                    NoteTheme.Primary
+                                )
+                            ) {}
+                        }
                     }
-                }
 
-                // Instructions
-                Text(
-                    text = "Position the QR code within the frame to scan",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
+                    // Instructions
+                    Text(
+                        text = "Position the QR code within the frame to scan",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        color = NoteTheme.OnSurfaceVariant
+                    )
+                }
             }
         }
     }

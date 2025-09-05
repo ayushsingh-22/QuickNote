@@ -44,9 +44,16 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Enable 16KB page size optimizations in release builds
+            ndk {
+                debugSymbolLevel = "NONE"
+            }
         }
         debug {
             // Debug configuration
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
         }
     }
 
@@ -61,6 +68,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     // Configure KAPT properly
@@ -96,6 +104,8 @@ android {
         // Critical: JNI library configuration for 16KB alignment
         jniLibs {
             useLegacyPackaging = false
+            // Enable 16KB alignment for all native libraries
+            keepDebugSymbols += listOf("**/*.so")
             pickFirsts += listOf(
                 "**/libc++_shared.so",
                 "**/libjsc.so",
@@ -123,7 +133,7 @@ android {
             isEnable = true
             reset()
             // Only include ABIs that support 16KB page size properly
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            include("arm64-v8a", "x86_64")
             isUniversalApk = false
         }
         // Remove density splits completely as they're deprecated
@@ -136,6 +146,8 @@ android {
         warningsAsErrors = false
         // Enable 16KB page size checks
         enable += listOf("Instantiatable", "UnsafeNativeCodeLocation")
+        // Add 16KB specific lint checks
+        enable += listOf("NewerVersionAvailable", "GradleDependency")
     }
 
     // Add bundle configuration for Play Store (preferred over APK splits)
@@ -196,7 +208,7 @@ dependencies {
     implementation(libs.camerax.camera2)
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)
-    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.play.services.mlkit.barcode.scanning)
     implementation(libs.androidx.concurrent.futures.ktx)
 
     // ZXing for QR code generation

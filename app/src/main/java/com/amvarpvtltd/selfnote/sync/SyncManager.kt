@@ -43,7 +43,7 @@ object SyncManager {
             val remindersSnapshot = sourceRef.child("reminders").get().await()
 
             val syncedNotes = mutableListOf<dataclass>()
-            val syncedReminders = mutableListOf<ReminderEntity>()
+            // Keep reminder processing but no longer collect counts for stats
 
             // Get local database
             val db = AppDatabase.getInstance(context)
@@ -174,7 +174,7 @@ object SyncManager {
                 }
             }
 
-            // Process reminders
+            // Process reminders (keep functionality but don't count them for stats)
             if (remindersSnapshot.exists()) {
                 for (reminderChild in remindersSnapshot.children) {
                     try {
@@ -182,7 +182,6 @@ object SyncManager {
                         if (reminderData != null) {
                             // Save to local database
                             reminderDao.insertReminder(reminderData)
-                            syncedReminders.add(reminderData)
                             Log.d(TAG, "Synced reminder: ${reminderData.noteTitle}")
                         }
                     } catch (e: Exception) {
@@ -196,7 +195,6 @@ object SyncManager {
 
             val result = SyncResult(
                 syncedNotesCount = syncedNotes.size,
-                syncedRemindersCount = syncedReminders.size,
                 sourcePassphrase = sourcePassphrase,
                 targetPassphrase = currentPassphrase
             )
@@ -256,7 +254,7 @@ object SyncManager {
             // Update sync metadata
             userRef.child("lastSyncAt").setValue(System.currentTimeMillis()).await()
             userRef.child("totalNotes").setValue(localNotes.size).await()
-            userRef.child("totalReminders").setValue(localReminders.size).await()
+            // Do not write totalReminders metadata anymore to avoid showing reminders in stats
 
             Log.d(TAG, "Uploaded ${localNotes.size} notes and ${localReminders.size} reminders to Firebase")
             Result.success(Unit)
@@ -287,13 +285,11 @@ object SyncManager {
 
             if (snapshot.exists()) {
                 val totalNotes = snapshot.child("totalNotes").getValue(Int::class.java) ?: 0
-                val totalReminders = snapshot.child("totalReminders").getValue(Int::class.java) ?: 0
                 val lastSyncAt = snapshot.child("lastSyncAt").getValue(Long::class.java) ?: 0L
                 val createdAt = snapshot.child("createdAt").getValue(Long::class.java) ?: 0L
 
                 val stats = SyncStats(
                     totalNotes = totalNotes,
-                    totalReminders = totalReminders,
                     lastSyncAt = lastSyncAt,
                     createdAt = createdAt
                 )
@@ -312,14 +308,12 @@ object SyncManager {
 
 data class SyncResult(
     val syncedNotesCount: Int,
-    val syncedRemindersCount: Int,
     val sourcePassphrase: String,
     val targetPassphrase: String
 )
 
 data class SyncStats(
     val totalNotes: Int = 0,
-    val totalReminders: Int = 0,
     val lastSyncAt: Long = 0L,
     val createdAt: Long = 0L
 )
