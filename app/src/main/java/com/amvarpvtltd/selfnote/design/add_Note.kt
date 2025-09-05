@@ -52,7 +52,16 @@ import com.amvarpvtltd.selfnote.ai.SmartReminderAI
 import com.amvarpvtltd.selfnote.components.BackgroundProvider
 import com.amvarpvtltd.selfnote.reminders.ReminderManager
 import kotlinx.coroutines.delay
-import java.util.UUID
+import android.content.ClipboardManager
+import android.content.Context
+import android.text.Html
+import android.text.Spanned
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.buildAnnotatedString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +80,12 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     var pendingReminders by remember { mutableStateOf<List<DetectedReminder>>(emptyList()) }
     var showReminderSuggestions by remember { mutableStateOf(false) }
     var isAnalyzingText by remember { mutableStateOf(false) }
+    // Formatted preview states (when clipboard HTML is pasted)
+    var titleFormatted by remember { mutableStateOf<AnnotatedString?>(null) }
+    var descriptionFormatted by remember { mutableStateOf<AnnotatedString?>(null) }
+    // Preserve original HTML (if pasted) so we can save/load formatted content
+    var titleHtml by remember { mutableStateOf<String?>(null) }
+    var descriptionHtml by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val noteRepository = remember { NoteRepository(context) }
@@ -118,6 +133,37 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
     // Automatically analyze text for reminders but store them as pending until note is saved
     LaunchedEffect(title, description) {
         val combinedText = "$title. $description".trim()
+
+        // Detect HTML in clipboard and show formatted preview if user just pasted rich text
+        try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = clipboard.primaryClip
+            val item = clip?.getItemAt(0)
+            val htmlText = item?.htmlText
+            val plain = item?.coerceToText(context)?.toString()
+
+            // If clipboard has HTML and the recent field change matches the plain text -> user pasted
+            if (!htmlText.isNullOrBlank() && !plain.isNullOrBlank() && (plain.trim() == title.trim() || plain.trim() == description.trim())) {
+                val spanned: Spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    Html.fromHtml(htmlText, Html.FROM_HTML_MODE_LEGACY)
+                } else {
+                    @Suppress("DEPRECATION")
+                    Html.fromHtml(htmlText)
+                }
+
+                val annotated = spannedToAnnotatedString(spanned)
+                if (plain.trim() == title.trim()) {
+                    titleFormatted = annotated
+                    titleHtml = htmlText
+                }
+                if (plain.trim() == description.trim()) {
+                    descriptionFormatted = annotated
+                    descriptionHtml = htmlText
+                }
+            }
+        } catch (e: Exception) {
+            Log.d("AddScreen", "Clipboard HTML detection skipped: ${e.message}")
+        }
 
         // Run minute-pattern fallback first (don't depend on hasReminderKeywords)
         try {
@@ -168,6 +214,16 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
             }
         } catch (e: Exception) {
             Log.e("AddScreen", "Error in minute fallback detection (pre-check)", e)
+        }
+
+        // If no formatted HTML matched, clear any previous formatted preview when text diverges
+        if (titleFormatted != null && titleFormatted?.text != title) {
+            titleFormatted = null
+            titleHtml = null
+        }
+        if (descriptionFormatted != null && descriptionFormatted?.text != description) {
+            descriptionFormatted = null
+            descriptionHtml = null
         }
 
         // Only run analysis when the AI's keyword detector finds relevant English/Hinglish keywords
@@ -247,8 +303,29 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                 if (result.isSuccess) {
                     val note = result.getOrNull()
                     note?.let {
-                        title = it.title
-                        description = it.description
+                        // If stored content contains HTML tags, render formatted preview and keep plain text in fields
+                        val titleCandidate = it.title ?: ""
+                        val descCandidate = it.description ?: ""
+
+                        fun looksLikeHtml(s: String) = s.contains(Regex("<[^>]+>"))
+
+                        if (looksLikeHtml(titleCandidate)) {
+                            val sp = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) Html.fromHtml(titleCandidate, Html.FROM_HTML_MODE_LEGACY) else Html.fromHtml(titleCandidate)
+                            titleFormatted = spannedToAnnotatedString(sp as Spanned)
+                            titleHtml = titleCandidate
+                            title = sp.toString()
+                        } else {
+                            title = titleCandidate
+                        }
+
+                        if (looksLikeHtml(descCandidate)) {
+                            val spd = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) Html.fromHtml(descCandidate, Html.FROM_HTML_MODE_LEGACY) else Html.fromHtml(descCandidate)
+                            descriptionFormatted = spannedToAnnotatedString(spd as Spanned)
+                            descriptionHtml = descCandidate
+                            description = spd.toString()
+                        } else {
+                            description = descCandidate
+                        }
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -277,7 +354,11 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
         scope.launch(Dispatchers.IO) {
             try {
                 // ALWAYS save to Room database first (offline-first)
-                val result = noteRepository.saveNote(title, description, noteId, context)
+                // If we have HTML saved from a paste, persist the HTML so formatting is preserved.
+                val titleToSave = titleHtml ?: title
+                val descToSave = descriptionHtml ?: description
+
+                val result = noteRepository.saveNote(titleToSave, descToSave, noteId, context)
 
                // kotlin
                // Add debug + safe navigation inside saveNote() success branch
@@ -1130,6 +1211,25 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         }
                     }
 
+                    // Formatted preview (if paste contained HTML)
+                    if (titleFormatted != null || descriptionFormatted != null) {
+                        Card(colors = CardDefaults.cardColors(containerColor = NoteTheme.SurfaceVariant.copy(alpha = 0.06f)), shape = RoundedCornerShape(Constants.CORNER_RADIUS_MEDIUM.dp)) {
+                            Column(modifier = Modifier.padding(Constants.PADDING_MEDIUM.dp)) {
+                                if (titleFormatted != null) {
+                                    Text(text = "Formatted Title Preview:", style = MaterialTheme.typography.bodySmall, color = NoteTheme.OnSurfaceVariant)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(text = titleFormatted!!, style = MaterialTheme.typography.titleMedium)
+                                    Spacer(modifier = Modifier.height(Constants.PADDING_SMALL.dp))
+                                }
+                                if (descriptionFormatted != null) {
+                                    Text(text = "Formatted Description Preview:", style = MaterialTheme.typography.bodySmall, color = NoteTheme.OnSurfaceVariant)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(text = descriptionFormatted!!, style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
+
                     // Add bottom spacing for FAB
                     Spacer(modifier = Modifier.height(80.dp))
                 }
@@ -1152,6 +1252,39 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
             } else {
                 navController.navigateUp()
             }
+        }
+    }
+}
+
+// Helper: convert Android Spanned (from Html) into Compose AnnotatedString with basic styles
+fun spannedToAnnotatedString(spanned: Spanned): AnnotatedString {
+    val plain = spanned.toString()
+    return buildAnnotatedString {
+        append(plain)
+
+        try {
+            val spans = spanned.getSpans(0, spanned.length, Any::class.java)
+            for (span in spans) {
+                val start = spanned.getSpanStart(span).coerceIn(0, plain.length)
+                val end = spanned.getSpanEnd(span).coerceIn(0, plain.length)
+                val style = when (span) {
+                    is android.text.style.StyleSpan -> {
+                        when (span.style) {
+                            android.graphics.Typeface.BOLD -> SpanStyle(fontWeight = FontWeight.Bold)
+                            android.graphics.Typeface.ITALIC -> SpanStyle(fontStyle = FontStyle.Italic)
+                            else -> SpanStyle()
+                        }
+                    }
+                    is android.text.style.UnderlineSpan -> SpanStyle(textDecoration = TextDecoration.Underline)
+                    is android.text.style.StrikethroughSpan -> SpanStyle(textDecoration = TextDecoration.LineThrough)
+                    is android.text.style.ForegroundColorSpan -> SpanStyle(color = androidx.compose.ui.graphics.Color(span.foregroundColor))
+                    is android.text.style.RelativeSizeSpan -> SpanStyle(fontSize = (14 * span.sizeChange).sp)
+                    else -> null
+                }
+                if (style != null && start < end) addStyle(style, start, end)
+            }
+        } catch (e: Exception) {
+            Log.d("AddScreen", "spannedToAnnotatedString: error converting spans: ${e.message}")
         }
     }
 }

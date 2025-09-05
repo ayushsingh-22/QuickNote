@@ -94,9 +94,9 @@ class NotificationHelper(private val context: Context) {
             .setSmallIcon(R.drawable.logo2) // Use latest app logo
             .setLargeIcon(android.graphics.BitmapFactory.decodeResource(context.resources, R.drawable.logo2))
             .setContentTitle("📝 Reminder: $noteTitle")
-            .setContentText(if (noteDescription.isNotEmpty()) noteDescription else "Tap to view your note")
+            .setContentText(noteDescription.ifEmpty { "Tap to view your note" })
             .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(if (noteDescription.isNotEmpty()) noteDescription else "Tap to view your note")
+                .bigText(noteDescription.ifEmpty { "Tap to view your note" })
                 .setBigContentTitle("📝 Reminder: $noteTitle")
                 .setSummaryText("QuickNote Reminder"))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
