@@ -1,83 +1,228 @@
-# ✨ QuickNote – Minimalist Cloud Notes App
+# QuickNote - Smart Note Taking App
 
-Welcome to **QuickNote**, a fast, lightweight, and secure Android app that lets you take notes on the go — no logins, no clutter, just you and your thoughts in the cloud. ☁️📝
-
----
-
-## 🚀 Why QuickNote?
-
-Ever wanted a **simple notes app** that just works?
-
-✅ No complicated sign-ups  
-✅ No bloated UI  
-✅ Just open → type → saved securely in the cloud
-
-QuickNote is designed for **speed, simplicity, and privacy**. Perfect for quick thoughts, to-dos, or ideas – stored safely without you lifting a finger.
+**QuickNote** is a modern, intelligent, and offline-first note-taking Android application built with **Jetpack Compose**. It combines clean UI/UX with powerful AI-driven reminders, making note-taking not just easier but smarter. Whether you’re writing down quick thoughts, managing tasks, or setting time-sensitive reminders, QuickNote ensures everything stays organized and accessible anytime, even without an internet connection.
 
 ---
 
-## 🌟 Features
+## ✨ Features
 
-✨ **Lightweight & Fast**  
-Runs smoothly even on low-end devices. Built to launch instantly.
+### 📱 Modern UI/UX
 
-🎨 **Minimal UI**  
-Distraction-free, clean interface. Focus only on writing.
+* Built **entirely with Jetpack Compose**, offering declarative and reactive UI.
+* Designed using **Material Design 3 principles**, ensuring a consistent, beautiful user experience.
+* Smooth animations and intuitive transitions make the app feel lively and responsive.
+* Optimized **responsive layouts** for mobile devices of different screen sizes.
+* **Light & Dark theme support**, adapting seamlessly to user preferences.
 
-☁️ **Cloud Sync with Firebase**  
-Your notes are instantly stored in the cloud – available whenever you return.
+### 📝 Powerful Note Management
 
-🔐 **Secure by Design**  
-Backed by Firebase’s powerful security rules to keep your data safe.
+* Create, edit, and delete notes with ease.
+* **Rich text formatting support** for bold, italic, and underline styles.
+* **Character counter with progress indicators** for focused writing.
+* Built-in validation for title and content ensures structured note-taking.
+* **Offline-first data persistence** ensures no data loss when connectivity drops.
 
-🚫 **No Login Required**  
-Privacy-first experience. No email, no password, no tracking – just pure productivity.
+### 🤖 AI-Powered Smart Reminders
+
+* Integrated with **Google ML Kit** for on-device NLP (Natural Language Processing).
+* Automatic **reminder detection** from text content — no need to manually add reminders.
+* Supports both **English and Hinglish**, recognizing dates and times in natural language.
+* Can detect **multiple reminders** within a single note.
+* Suggests reminders contextually while writing notes.
+
+### ⏰ Advanced Reminder Features
+
+* Flexible scheduling options for reminders.
+* Quick preset shortcuts (10min, 30min, 1hour, 1day) for convenience.
+* **Custom date and time picker** for precise scheduling.
+* Persistent **system notifications** for important tasks.
+* **Snooze functionality** for delaying tasks when needed.
+* Reminders work fully **offline**, syncing when internet returns.
+
+### 🔄 Offline-First Architecture
+
+* Notes are available offline at all times.
+* **Background sync** keeps data consistent across devices.
+* Smart **conflict resolution** ensures no overwriting when multiple updates happen.
 
 ---
 
-## 🛠 Tech Stack
+## 🛠️ Technical Highlights
 
-| Technology     | Usage                                        |
-|----------------|----------------------------------------------|
-| **Kotlin**     | Modern, expressive Android app development   |
-| **Firebase**   | Cloud Firestore for storage & data sync      |
-| **Android SDK**| Core APIs to build the Android experience    |
+### 🏗️ Architecture
+
+* **MVVM (Model-View-ViewModel)** for clear separation of concerns.
+* **Repository pattern** for data handling and abstraction.
+* **Coroutines** for asynchronous tasks with structured concurrency.
+* **StateFlow** for real-time, reactive UI updates.
+* Dependency Injection with **Hilt** (expandable for future scaling).
+
+### ⚙️ Technologies Used
+
+* **Kotlin** — primary development language.
+* **Jetpack Compose** — modern UI toolkit.
+* **Room Database** — local persistence layer.
+* **ML Kit** — natural language entity extraction for reminders.
+* **WorkManager** — background processing and sync tasks.
+* **AndroidX Libraries** — lifecycle-aware, robust components.
+
+### 💡 Smart AI Features
+
+* On-device processing ensures **privacy and security** of user data.
+* Recognizes natural date/time expressions like *“tomorrow at 5pm”* or *“next Monday”*.
+* Handles **context-aware scenarios**, like differentiating *“Meeting at 3”* vs *“Finish report by 3”*.
+* Intelligent formatting detection makes notes consistent without manual effort.
 
 ---
 
-## 📲 Getting Started
+## 📂 Project Structure
 
-Wanna try it out locally? Follow these steps:
-
-1. **Clone the repo**
-
-```bash
-git clone https://github.com/ayushsingh-22/QuickNote.git
+```
+QuickNote/
+├── app/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/com/amvarpvtltd/selfnote/
+│   │   │   │   ├── ai/
+│   │   │   │   │   └── SmartReminderAI.kt        # AI-powered reminder detection
+│   │   │   │   ├── components/
+│   │   │   │   │   └── ReminderComponents.kt     # Reusable UI elements
+│   │   │   │   ├── design/
+│   │   │   │   │   └── add_Note.kt              # Note creation & editing screen
+│   │   │   │   ├── notifications/
+│   │   │   │   │   └── NotificationHelper.kt     # Notification manager
+│   │   │   │   └── reminders/
+│   │   │   │       └── ReminderManager.kt        # Reminder scheduling system
+│   │   │   ├── res/                              # Resources (icons, fonts, values)
+│   │   │   └── AndroidManifest.xml
+│   │   ├── androidTest/                          # Instrumentation tests
+│   │   └── test/                                 # Unit tests
+│   ├── build.gradle.kts
+│   └── proguard-rules.pro
+├── gradle/
+│   └── libs.versions.toml
+├── build.gradle.kts
+└── settings.gradle.kts
 ```
 
-2. **Open in Android Studio**
+---
 
-Make sure you have the latest Android Studio installed.
+## 📱 Screenshots
 
-3. **Set up Firebase**
-
-- Go to [Firebase Console](https://console.firebase.google.com/)
-- Create a new project
-- Register your Android app (use the package name from the project)
-- Download the `google-services.json` file
-- Place it in: `app/` folder
-
-4. **Build & Run**
-
-Hit the play ▶️ button and start taking notes!
+<p align="center"> 
+  <img width="230" height="510" src="https://github.com/user-attachments/assets/f9b4800a-81d3-46fa-bc6d-2a4a97f2ec13" /> 
+  <img width="230" height="510" src="https://github.com/user-attachments/assets/449e5270-8e63-4933-a4d5-dcdac85aeaf9" /> 
+  <img width="230" height="510" src="https://github.com/user-attachments/assets/a773dedb-8159-4731-a1c4-973fa0e3ee82" /> 
+  <img width="230" height="510" src="https://github.com/user-attachments/assets/9027efac-7541-4fec-bbc1-8bf634122703" /> 
+</p> 
+<p align="center"> 
+  <img width="230" height="510" src="https://github.com/user-attachments/assets/e9db5c02-b1ea-4bea-a69a-d523cc1bdfc5" /> 
+  <img width="230" height="510" src="https://github.com/user-attachments/assets/7cbf1a6a-8f77-414b-a8a4-0933e4fb93e7" /> 
+  <img width="230" height="510" src="https://github.com/user-attachments/assets/41f2e952-3ba1-4f6d-9c99-125ad13a2472" /> 
+  <img width="230" height="510" src="https://github.com/user-attachments/assets/9e940054-0089-4ba7-9fbb-4970b150585f" /> 
+</p>
 
 ---
 
-## 💬 Connect
+## 🚀 Getting Started
 
-If you liked the project, drop a ⭐ on GitHub — it means a lot!  
-For feedback, ideas, or collaboration — feel free to reach out:
+### Prerequisites
 
-🔗 [LinkedIn – Ayush Kumar](https://www.linkedin.com/in/ayush-kumar-a2880a258/)
+* Android Studio **Arctic Fox (or newer)**.
+* **Minimum SDK:** 21 (Android 5.0 Lollipop).
+* **Target SDK:** 34.
+* Kotlin version: **1.9.x or newer**.
+
+### Installation
+
+1. Clone the repository:
+
+   ```bash
+    git clone https://github.com/ayushsingh-22/QuickNote.git
+   ```
+
+   👉 [Click here to view the repository](https://github.com/ayushsingh-22/QuickNote.git)
+   
+3. Open the project in **Android Studio**.
+4. Sync Gradle dependencies.
+5. Run the app on a physical device or emulator.
+
+### Building from Source
+
+* **From Android Studio:**
+
+  * Select *Build > Make Project*.
+  * Click ▶️ (Run) to launch.
+* **From CLI:**
+
+  ```bash
+  ./gradlew assembleDebug    # Debug build
+  ./gradlew assembleRelease  # Release build
+  ```
+
+### Testing
+
+```bash
+./gradlew test            # Unit tests
+./gradlew connectedCheck  # Instrumented tests
+```
 
 ---
+
+## 📄 License
+
+This project is licensed under the **\[MIT License]** — see the LICENSE file for details.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Here’s how you can help:
+
+1. Fork the repository.
+2. Create a new feature branch:
+
+   ```bash
+   git checkout -b feature/AmazingFeature
+   ```
+3. Commit your changes:
+
+   ```bash
+   git commit -m "Add AmazingFeature"
+   ```
+4. Push the branch:
+
+   ```bash
+   git push origin feature/AmazingFeature
+   ```
+5. Open a Pull Request.
+
+**Contribution Guidelines:**
+
+* Follow official **Kotlin coding conventions**.
+* Use clear, meaningful names for variables and functions.
+* Add comments for non-trivial logic.
+* Ensure new features are covered with **unit tests**.
+
+---
+
+## 🙏 Acknowledgments
+
+* **Google’s ML Kit** — natural language AI.
+* **Jetpack Compose** — modern UI toolkit.
+* **Material Design 3** — for visual consistency.
+* **Android Architecture Components** — lifecycle-aware building blocks.
+
+---
+
+## 📞 Contact
+
+* Author: [**Ayush Kumar**](https://www.linkedin.com/in/ayush-kumar-a2880a258/)
+* Project Repository: [Repository](https://github.com/ayushsingh-22/QuickNote.git)
+* LinkedIn: [Ayush Kumar](https://www.linkedin.com/in/ayush-kumar-a2880a258/)
+
+---
+
+💡 *QuickNote is built with love and care to make note-taking simpler, faster, and smarter.*
+
+Made with ❤️ using **Jetpack Compose**.
