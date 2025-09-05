@@ -107,20 +107,25 @@ QuickNote/
 
 ---
 
-## 📱 Screenshots
+## 📱 Screenshots  
 
-<p align="center"> 
-  <img width="230" height="510" src="https://github.com/user-attachments/assets/f9b4800a-81d3-46fa-bc6d-2a4a97f2ec13" /> 
-  <img width="230" height="510" src="https://github.com/user-attachments/assets/449e5270-8e63-4933-a4d5-dcdac85aeaf9" /> 
-  <img width="230" height="510" src="https://github.com/user-attachments/assets/a773dedb-8159-4731-a1c4-973fa0e3ee82" /> 
-  <img width="230" height="510" src="https://github.com/user-attachments/assets/9027efac-7541-4fec-bbc1-8bf634122703" /> 
-</p> 
-<p align="center"> 
-  <img width="230" height="510" src="https://github.com/user-attachments/assets/e9db5c02-b1ea-4bea-a69a-d523cc1bdfc5" /> 
-  <img width="230" height="510" src="https://github.com/user-attachments/assets/7cbf1a6a-8f77-414b-a8a4-0933e4fb93e7" /> 
-  <img width="230" height="510" src="https://github.com/user-attachments/assets/41f2e952-3ba1-4f6d-9c99-125ad13a2472" /> 
-  <img width="230" height="510" src="https://github.com/user-attachments/assets/9e940054-0089-4ba7-9fbb-4970b150585f" /> 
-</p>
+<table>
+  <tr>
+    <td><img width="230" height="510" src="https://github.com/user-attachments/assets/f9b4800a-81d3-46fa-bc6d-2a4a97f2ec13" /></td>
+    <td><img width="230" height="510" src="https://github.com/user-attachments/assets/449e5270-8e63-4933-a4d5-dcdac85aeaf9" /></td>
+    <td><img width="230" height="510" src="https://github.com/user-attachments/assets/a773dedb-8159-4731-a1c4-973fa0e3ee82" /></td>
+  </tr>
+  <tr>
+    <td><img width="230" height="510" src="https://github.com/user-attachments/assets/9027efac-7541-4fec-bbc1-8bf634122703" /></td>
+    <td><img width="230" height="510" src="https://github.com/user-attachments/assets/e9db5c02-b1ea-4bea-a69a-d523cc1bdfc5" /></td>
+    <td><img width="230" height="510" alt="5 1" src="https://github.com/user-attachments/assets/bb4ebcd7-a476-4d15-889e-8637331864b6" /></td>
+  </tr>
+  <tr>
+    <td><img width="230" height="510" src="https://github.com/user-attachments/assets/7cbf1a6a-8f77-414b-a8a4-0933e4fb93e7" /></td>
+    <td><img width="230" height="510" src="https://github.com/user-attachments/assets/41f2e952-3ba1-4f6d-9c99-125ad13a2472" /></td>
+    <td><img width="230" height="510" src="https://github.com/user-attachments/assets/9e940054-0089-4ba7-9fbb-4970b150585f" /></td>
+  </tr>
+</table>
 
 ---
 
