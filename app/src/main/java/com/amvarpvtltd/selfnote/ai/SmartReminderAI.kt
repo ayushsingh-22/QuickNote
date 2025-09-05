@@ -1,5 +1,6 @@
 package com.amvarpvtltd.selfnote.ai
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import com.google.mlkit.nl.entityextraction.*
@@ -21,6 +22,7 @@ class SmartReminderAI(private val context: Context) {
     private var isInitialized = false
 
     companion object {
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: SmartReminderAI? = null
 
@@ -190,7 +192,7 @@ class SmartReminderAI(private val context: Context) {
 
             when (entity.dateTimeGranularity) {
                 DateTimeEntity.GRANULARITY_DAY -> {
-                    val timestamp = entity.timestampMillis ?: return null
+                    val timestamp = entity.timestampMillis
                     calendar.timeInMillis = timestamp
                     // Set to 9 AM if only date is specified
                     calendar.set(Calendar.HOUR_OF_DAY, 9)
@@ -258,7 +260,7 @@ class SmartReminderAI(private val context: Context) {
             Regex("\\b([01]?\\d|2[0-3]):[0-5]\\d\\b"),
             // numeric minutes like '5 min', '10 mins', including common misspellings and Hinglish suffixes
             Regex("\\b\\d{1,3}\\s*(?:min|mins|minm|minute|minutes)\\s*(?:mai|mein)?\\b", RegexOption.IGNORE_CASE),
-            Regex("\\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|may|june|july|august|september|october|november|december)\\b", RegexOption.IGNORE_CASE),
+            Regex("\\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\\b", RegexOption.IGNORE_CASE),
             Regex("\\b(?:at|on|by|before|after|next|this|remind|reminder|appointment|meeting|call|deadline|alarm)\\b", RegexOption.IGNORE_CASE)
         )
 
@@ -290,21 +292,6 @@ class SmartReminderAI(private val context: Context) {
 
         // Finally, also match simple token contains for multi-word Hinglish fragments (fallback)
         return keywordLiterals.any { lowercaseText.contains(it) }
-    }
-
-    /**
-     * Clean up resources
-     */
-    fun cleanup() {
-        try {
-            if (isInitialized) {
-                entityExtractor.close()
-                isInitialized = false
-                Log.d(TAG, "🧹 Entity Extractor cleaned up")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error cleaning up Entity Extractor", e)
-        }
     }
 
     /**
@@ -506,7 +493,7 @@ class SmartReminderAI(private val context: Context) {
                     cal.set(Calendar.MINUTE, 0)
                     cal.set(Calendar.SECOND, 0)
                     if (cal.timeInMillis > System.currentTimeMillis()) reminders.add(buildReminder(cal.timeInMillis, m.value.trim()))
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // ignore
                 }
             }
@@ -516,7 +503,7 @@ class SmartReminderAI(private val context: Context) {
                  "jan" to 0, "feb" to 1, "mar" to 2, "apr" to 3, "may" to 4, "jun" to 5,
                  "jul" to 6, "aug" to 7, "sep" to 8, "oct" to 9, "nov" to 10, "dec" to 11
              )
-             val monthPattern = Regex("\\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|may|june|july|august|september|october|november|december)\\s+(\\d{1,2})(?:\\s+at\\s+(\\d{1,2}(:\\d{2})?\\s?(?:am|pm)?))?",
+             val monthPattern = Regex("\\b(jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|may|june|july|august|september|october|november|december)\\s+(\\d{1,2})(?:\\s+at\\s+(\\d{1,2}(:\\d{2})?\\s?(?:am|pm)?))?",
                  RegexOption.IGNORE_CASE)
              monthPattern.findAll(text).forEach { m ->
                  val mon = m.groupValues[1].lowercase().take(3)
@@ -566,7 +553,7 @@ class SmartReminderAI(private val context: Context) {
                 if (ampm == "am" && hour == 12) hour = 0
             }
             if (hour in 0..23 && minute in 0..59) return Pair(hour, minute)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // ignore
         }
         return null

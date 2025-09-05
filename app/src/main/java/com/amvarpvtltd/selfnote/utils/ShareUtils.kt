@@ -52,15 +52,9 @@ object ShareUtils {
      */
     private fun formatNoteForSharing(note: dataclass): String {
         return buildString {
-            // Title Section
-            appendLine("📝 Note")
-            appendLine("Title: ${note.title}")
-            appendLine("=".repeat(maxOf(note.title.length + 8, 25)))
-            appendLine()
 
             // Description Section
             if (note.description.isNotEmpty()) {
-                appendLine("📌 Description:")
                 appendLine(note.description.trim())
                 appendLine()
             } else {

@@ -307,7 +307,6 @@ fun NotesScreen(navController: NavHostController) {
                                             fontWeight = FontWeight.Bold,
                                             color = NoteTheme.OnSurface,
                                             style = MaterialTheme.typography.titleLarge,
-                                            fontFamily = Lobster_Font,
                                             fontSize = 28.sp
                                         )
 

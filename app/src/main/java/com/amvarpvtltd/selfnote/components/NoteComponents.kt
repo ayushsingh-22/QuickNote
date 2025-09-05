@@ -85,13 +85,6 @@ fun ActionButton(
     }
 }
 
-/**
- * Compute adaptive container and content colors for small icon buttons so they remain readable
- * against the provided background. Returns Pair(containerColor, contentColor).
- *
- * - background: the screen/background color to test luminance against
- * - accent: preferred accent color for the icon (e.g. NoteTheme.Secondary)
- */
 fun adaptiveIconColors(background: Color, accent: Color): Pair<Color, Color> {
     val bgIsLight = background.luminance() > 0.5f
     // Slightly stronger container on dark backgrounds to improve visibility
@@ -134,7 +127,7 @@ fun IconActionButton(
             Icon(
                 icon,
                 contentDescription = contentDescription,
-                tint = contentColor,
+                tint = Color.Black,
                 modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
             )
         }

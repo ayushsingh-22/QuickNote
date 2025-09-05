@@ -362,7 +362,7 @@ fun ThemeToggleButton(
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = contentColor,
+                tint = Color.Black,
                 modifier = Modifier.size(Constants.ICON_SIZE_LARGE.dp)
             )
         }
