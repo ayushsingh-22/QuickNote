@@ -45,6 +45,14 @@
 * **Background sync** keeps data consistent across devices.
 * Smart **conflict resolution** ensures no overwriting when multiple updates happen.
 
+### 📲 Device Sync via Device ID & QR Code
+
+* Seamlessly **sync notes across multiple devices** without requiring an account.
+* Each installation generates a unique **Device ID** that can be securely shared.
+* Quickly link devices by **scanning a QR code**, enabling instant pairing.
+* Works fully offline-first, with background sync resuming when internet connectivity is available.
+* Ensures secure, private, and anonymous syncing between your personal devices.
+
 ---
 
 ## 🛠️ Technical Highlights
@@ -56,6 +64,7 @@
 * **Coroutines** for asynchronous tasks with structured concurrency.
 * **StateFlow** for real-time, reactive UI updates.
 * Dependency Injection with **Hilt** (expandable for future scaling).
+* **Device Sync Module** for managing unique Device IDs, QR code generation, and secure device-to-device linking.
 
 ### ⚙️ Technologies Used
 
@@ -65,6 +74,7 @@
 * **ML Kit** — natural language entity extraction for reminders.
 * **WorkManager** — background processing and sync tasks.
 * **AndroidX Libraries** — lifecycle-aware, robust components.
+* **ZXing / ML Kit Barcode** — QR code generation and scanning for device linking.
 
 ### 💡 Smart AI Features
 
