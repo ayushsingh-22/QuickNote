@@ -2,6 +2,8 @@ package com.amvarpvtltd.selfnote.design
 
 import android.util.Log
 import android.widget.Toast
+import android.text.Html
+import android.text.Spanned
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,6 +69,8 @@ import com.amvarpvtltd.selfnote.repository.NoteRepository
 import com.amvarpvtltd.selfnote.utils.Constants
 import com.amvarpvtltd.selfnote.utils.NetworkManager
 import com.amvarpvtltd.selfnote.utils.ShareUtils
+import com.halilibo.richtext.markdown.Markdown
+import com.halilibo.richtext.ui.material3.Material3RichText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -454,13 +459,36 @@ fun ViewNoteScreen(navController: NavHostController, noteId: String?) {
 
                                 Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
 
-                                Text(
-                                    text = note?.description ?: "",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = NoteTheme.OnSurface,
-                                    lineHeight = 24.sp,
-                                    textAlign = TextAlign.Start
-                                )
+                                val descText = note?.description ?: ""
+
+                                if (descText.contains(Regex("<[^>]+>"))) {
+                                    // Render HTML saved content
+                                    val sp: Spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                                        Html.fromHtml(descText, Html.FROM_HTML_MODE_LEGACY)
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        Html.fromHtml(descText)
+                                    }
+
+                                    val annotated = try {
+                                        spannedToAnnotatedString(sp)
+                                    } catch (e: Exception) {
+                                        AnnotatedString(sp.toString())
+                                    }
+
+                                    Text(
+                                        text = annotated,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = NoteTheme.OnSurface,
+                                        lineHeight = 24.sp,
+                                        textAlign = TextAlign.Start
+                                    )
+                                } else {
+                                    // Render markdown content using RichText
+                                    Material3RichText {
+                                        Markdown(descText)
+                                    }
+                                }
                             }
                         }
 

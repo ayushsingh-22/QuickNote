@@ -62,6 +62,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.buildAnnotatedString
+import com.amvarpvtltd.selfnote.components.RichTextEditor
+import com.halilibo.richtext.markdown.Markdown
+import com.halilibo.richtext.ui.material3.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -310,7 +313,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         fun looksLikeHtml(s: String) = s.contains(Regex("<[^>]+>"))
 
                         if (looksLikeHtml(titleCandidate)) {
-                            val sp = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) Html.fromHtml(titleCandidate, Html.FROM_HTML_MODE_LEGACY) else Html.fromHtml(titleCandidate)
+                            val sp = Html.fromHtml(titleCandidate, Html.FROM_HTML_MODE_LEGACY)
                             titleFormatted = spannedToAnnotatedString(sp as Spanned)
                             titleHtml = titleCandidate
                             title = sp.toString()
@@ -319,7 +322,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         }
 
                         if (looksLikeHtml(descCandidate)) {
-                            val spd = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) Html.fromHtml(descCandidate, Html.FROM_HTML_MODE_LEGACY) else Html.fromHtml(descCandidate)
+                            val spd = Html.fromHtml(descCandidate, Html.FROM_HTML_MODE_LEGACY)
                             descriptionFormatted = spannedToAnnotatedString(spd as Spanned)
                             descriptionHtml = descCandidate
                             description = spd.toString()
@@ -353,10 +356,9 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
         isSaving = true
         scope.launch(Dispatchers.IO) {
             try {
-                // ALWAYS save to Room database first (offline-first)
-                // If we have HTML saved from a paste, persist the HTML so formatting is preserved.
-                val titleToSave = titleHtml ?: title
-                val descToSave = descriptionHtml ?: description
+                // Save markdown content directly
+                val titleToSave = title
+                val descToSave = description  // This now contains markdown formatting
 
                 val result = noteRepository.saveNote(titleToSave, descToSave, noteId, context)
 
@@ -1087,36 +1089,23 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
 
                             Spacer(modifier = Modifier.height(Constants.PADDING_MEDIUM.dp))
 
-                            OutlinedTextField(
-                                value = description,
-                                onValueChange = {
-                                    if (it.length <= Constants.DESCRIPTION_MAX_LENGTH) description =
-                                        it
+                            // Rich Text Editor
+                            RichTextEditor(
+                                text = description,
+                                onTextChange = {
+                                    if (it.length <= Constants.DESCRIPTION_MAX_LENGTH) {
+                                        description = it
+                                        descriptionHtml = it  // Store markdown as HTML
+                                    }
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 120.dp) // Set minimum height for text field
+                                    .heightIn(min = 120.dp)
                                     .onFocusChanged { descriptionFocused = it.isFocused },
-                                placeholder = {
-                                    Text(
-                                        "Write your thoughts here...\n\nExpress your ideas, capture important information, or jot down anything that comes to mind.",
-                                        color = NoteTheme.OnSurfaceVariant.copy(alpha = 0.5f)
-                                    )
-                                },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = descCountColor,
-                                    unfocusedBorderColor = NoteTheme.OnSurfaceVariant.copy(alpha = 0.3f),
-                                    cursorColor = NoteTheme.Secondary,
-                                    focusedLabelColor = descCountColor,
-                                    focusedTextColor = NoteTheme.OnSurface, // Use theme-aware color
-                                    unfocusedTextColor = NoteTheme.OnSurface // Use theme-aware color
-                                ),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
-                                keyboardActions = KeyboardActions(
-                                    onDone = { /* Allow default behavior - no action needed */ }
-                                ),
-                                shape = RoundedCornerShape(Constants.CORNER_RADIUS_SMALL.dp)
+                                isPreview = false
                             )
+
+
                         }
                     }
 

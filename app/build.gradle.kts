@@ -228,4 +228,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.3")
+
+    // Rich text editor
+    implementation("com.halilibo.compose-richtext:richtext-ui-material3:0.17.0")
+    implementation("com.halilibo.compose-richtext:richtext-commonmark:0.17.0")
 }
