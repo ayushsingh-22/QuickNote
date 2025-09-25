@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.amvarpvtltd.selfnote"
+    namespace = "com.amvarpvtltd.swiftNote"
     compileSdk = 35
 
     defaultConfig {

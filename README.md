@@ -1,6 +1,6 @@
-# QuickNote - Smart Note Taking App
+# SwiftNote - Smart Note Taking App
 
-**QuickNote** is a modern, intelligent, and offline-first note-taking Android application built with **Jetpack Compose**. It combines clean UI/UX with powerful AI-driven reminders, making note-taking not just easier but smarter. Whether you’re writing down quick thoughts, managing tasks, or setting time-sensitive reminders, QuickNote ensures everything stays organized and accessible anytime, even without an internet connection.
+**SwiftNote** is a modern, intelligent, and offline-first note-taking Android application built with **Jetpack Compose**. It combines clean UI/UX with powerful AI-driven reminders, making note-taking not just easier but smarter. Whether you’re writing down quick thoughts, managing tasks, or setting time-sensitive reminders, SwiftNote ensures everything stays organized and accessible anytime, even without an internet connection.
 
 ---
 
@@ -88,7 +88,7 @@
 ## 📂 Project Structure
 
 ```
-QuickNote/
+SwiftNote/
 ├── app/
 │   ├── src/
 │   │   ├── main/
@@ -153,10 +153,10 @@ QuickNote/
 1. Clone the repository:
 
    ```bash
-    git clone https://github.com/ayushsingh-22/QuickNote.git
+    git clone https://github.com/ayushsingh-22/SwiftNote.git
    ```
 
-   👉 [Click here to view the repository](https://github.com/ayushsingh-22/QuickNote.git)
+   👉 [Click here to view the repository](https://github.com/ayushsingh-22/SwiftNote.git)
    
 3. Open the project in **Android Studio**.
 4. Sync Gradle dependencies.
@@ -233,11 +233,11 @@ Contributions are welcome! Here’s how you can help:
 ## 📞 Contact
 
 * Author: [**Ayush Kumar**](https://www.linkedin.com/in/ayush-kumar-a2880a258/)
-* Project Repository: [Repository](https://github.com/ayushsingh-22/QuickNote.git)
+* Project Repository: [Repository](https://github.com/ayushsingh-22/SwiftNote.git)
 * LinkedIn: [Ayush Kumar](https://www.linkedin.com/in/ayush-kumar-a2880a258/)
 
 ---
 
-💡 *QuickNote is built with love and care to make note-taking simpler, faster, and smarter.*
+💡 *SwiftNote is built with love and care to make note-taking simpler, faster, and smarter.*
 
 Made with ❤️ using **Jetpack Compose**.

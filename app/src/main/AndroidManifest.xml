@@ -39,7 +39,7 @@
         <!-- 16KB Page Size Compatibility -->
         <meta-data
             android:name="android.app.lib_name"
-            android:value="quicknote" />
+            android:value="SwiftNote" />
         <meta-data
             android:name="android.max_aspect"
             android:value="2.4" />
