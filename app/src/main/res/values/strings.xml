@@ -10,4 +10,52 @@
     <string name="no_notes_found">No notes found</string>
     <string name="offline_mode">Offline Mode</string>
     <string name="sync_notes">Sync Notes</string>
+    
+    <!-- Accessibility content descriptions -->
+    <string name="accessibility_back_button">Navigate back</string>
+    <string name="accessibility_menu_button">Open menu</string>
+    <string name="accessibility_search_button">Search notes</string>
+    <string name="accessibility_add_note_button">Add new note</string>
+    <string name="accessibility_delete_note_button">Delete this note</string>
+    <string name="accessibility_share_note_button">Share this note</string>
+    <string name="accessibility_edit_note_button">Edit this note</string>
+    <string name="accessibility_sync_button">Sync notes with other devices</string>
+    <string name="accessibility_settings_button">Open app settings</string>
+    <string name="accessibility_theme_toggle">Switch app theme</string>
+    <string name="accessibility_view_mode_toggle">Change notes view mode</string>
+    <string name="accessibility_sort_button">Sort notes</string>
+    <string name="accessibility_filter_button">Filter notes</string>
+    
+    <!-- Privacy and consent -->
+    <string name="accessibility_consent_checkbox">Privacy consent checkbox</string>
+    <string name="accessibility_privacy_policy_link">Open privacy policy</string>
+    <string name="accessibility_terms_link">Open terms of service</string>
+    <string name="accessibility_export_data_button">Export your data</string>
+    <string name="accessibility_manage_data_button">Manage your data</string>
+    
+    <!-- Note interaction -->
+    <string name="accessibility_note_card">Note card: %1$s</string>
+    <string name="accessibility_note_title_field">Note title</string>
+    <string name="accessibility_note_content_field">Note content</string>
+    <string name="accessibility_reminder_button">Set reminder for this note</string>
+    <string name="accessibility_reminder_time">Reminder scheduled for %1$s</string>
+    
+    <!-- Dialog announcements -->
+    <string name="accessibility_dialog_opened">Dialog opened</string>
+    <string name="accessibility_dialog_closed">Dialog closed</string>
+    <string name="accessibility_confirmation_dialog">Confirmation required</string>
+    
+    <!-- Status announcements -->
+    <string name="accessibility_note_saved">Note saved successfully</string>
+    <string name="accessibility_note_deleted">Note deleted</string>
+    <string name="accessibility_sync_started">Sync started</string>
+    <string name="accessibility_sync_completed">Sync completed</string>
+    <string name="accessibility_export_started">Data export started</string>
+    <string name="accessibility_export_completed">Data export completed</string>
+    
+    <!-- Loading states -->
+    <string name="accessibility_loading">Loading</string>
+    <string name="accessibility_saving">Saving</string>
+    <string name="accessibility_syncing">Syncing</string>
+    <string name="accessibility_exporting">Exporting data</string>
 </resources>

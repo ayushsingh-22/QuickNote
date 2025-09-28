@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.amvarpvtltd.swiftNote.components.BackgroundProvider
 import com.amvarpvtltd.swiftNote.design.NoteTheme
+import com.amvarpvtltd.swiftNote.privacy.DataExportManager
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,7 +36,10 @@ fun PrivacyPolicyScreen(navController: NavController) {
     val hapticFeedback = LocalHapticFeedback.current
 
     var showDataExportDialog by remember { mutableStateOf(false) }
-    var showAccountDeletionDialog by remember { mutableStateOf(false) }
+    var isExporting by remember { mutableStateOf(false) }
+    var exportFormat by remember { mutableStateOf("JSON") }
+    
+    val dataExportManager = remember { DataExportManager(context) }
 
     Scaffold(
         topBar = {
@@ -187,6 +191,7 @@ fun PrivacyPolicyScreen(navController: NavController) {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                 showDataExportDialog = true
                             },
+                            enabled = !isExporting,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 8.dp),
@@ -195,9 +200,20 @@ fun PrivacyPolicyScreen(navController: NavController) {
                                 contentColor = NoteTheme.OnPrimary
                             )
                         ) {
-                            Icon(Icons.Default.Download, contentDescription = null)
+                            if (isExporting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = NoteTheme.OnPrimary,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(Icons.Default.Download, contentDescription = null)
+                            }
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Export My Data", fontWeight = FontWeight.Medium)
+                            Text(
+                                if (isExporting) "Exporting..." else "Export My Data", 
+                                fontWeight = FontWeight.Medium
+                            )
                         }
 
                         // Data management navigation
@@ -385,35 +401,94 @@ fun PrivacyPolicyScreen(navController: NavController) {
                 }
             },
             text = {
-                Text(
-                    text = "This feature will allow you to export all your notes and data in a portable format. This functionality is coming in a future update.\n\nCurrently, you can use the sync feature to backup your data to another device.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = NoteTheme.OnSurfaceVariant,
-                    textAlign = TextAlign.Start
-                )
+                Column {
+                    Text(
+                        text = "Choose the format for your data export:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = NoteTheme.OnSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
+                    // Format selection
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            onClick = { exportFormat = "JSON" },
+                            label = { Text("JSON (Technical)") },
+                            selected = exportFormat == "JSON",
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NoteTheme.Primary,
+                                selectedLabelColor = NoteTheme.OnPrimary
+                            )
+                        )
+                        FilterChip(
+                            onClick = { exportFormat = "TEXT" },
+                            label = { Text("Text (Readable)") },
+                            selected = exportFormat == "TEXT",
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NoteTheme.Primary,
+                                selectedLabelColor = NoteTheme.OnPrimary
+                            )
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Text(
+                        text = "This will create a file containing all your notes, reminders, and app preferences. You can share or save this file securely.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NoteTheme.OnSurfaceVariant
+                    )
+                }
             },
             confirmButton = {
                 Button(
-                    onClick = { showDataExportDialog = false },
+                    onClick = {
+                        showDataExportDialog = false
+                        isExporting = true
+                        scope.launch {
+                            try {
+                                val result = if (exportFormat == "JSON") {
+                                    dataExportManager.exportAllData()
+                                } else {
+                                    dataExportManager.exportAsReadableText()
+                                }
+                                
+                                if (result.isSuccess) {
+                                    val uri = result.getOrNull()
+                                    if (uri != null) {
+                                        val shareIntent = dataExportManager.shareExportedData(uri)
+                                        context.startActivity(shareIntent)
+                                        Toast.makeText(context, "✅ Data exported successfully!", Toast.LENGTH_LONG).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "❌ Export failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "❌ Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+                            } finally {
+                                isExporting = false
+                            }
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = NoteTheme.Primary,
                         contentColor = NoteTheme.OnPrimary
                     )
                 ) {
-                    Text("Got it", fontWeight = FontWeight.Bold)
+                    Text("Export", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 OutlinedButton(
-                    onClick = {
-                        showDataExportDialog = false
-                        navController.navigate("sync_settings")
-                    },
+                    onClick = { showDataExportDialog = false },
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = NoteTheme.Primary
+                        contentColor = NoteTheme.OnSurface
                     )
                 ) {
-                    Text("Use Sync", fontWeight = FontWeight.Medium)
+                    Text("Cancel", fontWeight = FontWeight.Medium)
                 }
             }
         )
