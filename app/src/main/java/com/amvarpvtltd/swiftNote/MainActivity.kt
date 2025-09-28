@@ -1,6 +1,8 @@
 package com.amvarpvtltd.swiftNote
 
+import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.MutableLiveData
 import com.amvarpvtltd.swiftNote.permissions.PermissionManager
 import com.amvarpvtltd.swiftNote.permissions.createPermissionManager
 import com.amvarpvtltd.swiftNote.ui.theme.SelfNoteTheme
@@ -17,12 +20,20 @@ class MainActivity : ComponentActivity() {
     // Modular permission manager
     private lateinit var permissionManager: PermissionManager
 
+    // LiveData to hold the noteId from notification
+    companion object {
+        val noteIdToOpen = MutableLiveData<String?>()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         // Initialize modular permission manager
         initializePermissionManager()
+
+        // Check for noteId in intent
+        handleIntent(intent)
 
         setContent {
             SelfNoteTheme {
@@ -31,6 +42,21 @@ class MainActivity : ComponentActivity() {
                     MyApp()
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        // Check if we have a noteId in the intent (from notification)
+        val noteId = intent.getStringExtra("noteId")
+        if (!noteId.isNullOrEmpty()) {
+            Log.d("MainActivity", "📱 Received noteId from notification: $noteId")
+            // Set the LiveData value to trigger navigation in MyApp
+            noteIdToOpen.value = noteId
         }
     }
 

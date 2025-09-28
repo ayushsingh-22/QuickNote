@@ -1,6 +1,7 @@
 package com.amvarpvtltd.swiftNote.reminders
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,7 +10,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.provider.Settings
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
@@ -23,7 +23,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 /**
  * Manages reminders with persistent alarms that survive device reboots
@@ -36,6 +37,7 @@ class ReminderManager private constructor(private val context: Context) {
     private val reminderDao = database.reminderDao()
 
     companion object {
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: ReminderManager? = null
 
@@ -61,22 +63,20 @@ class ReminderManager private constructor(private val context: Context) {
      * Create notification channel for reminders
      */
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
-                NOTIFICATION_CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notifications for smart reminders from your notes"
-                enableVibration(true)
-                enableLights(true)
-                setShowBadge(true)
-            }
-
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-            Log.d(TAG, "📱 Notification channel created")
+        val channel = NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            NOTIFICATION_CHANNEL_NAME,
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notifications for smart reminders from your notes"
+            enableVibration(true)
+            enableLights(true)
+            setShowBadge(true)
         }
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(channel)
+        Log.d(TAG, "📱 Notification channel created")
     }
 
     /**
@@ -127,19 +127,11 @@ class ReminderManager private constructor(private val context: Context) {
             // Schedule exact alarm if possible, otherwise schedule a best-effort alarm
             try {
                 if (canScheduleExactAlarms()) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        alarmManager.setExactAndAllowWhileIdle(
-                            AlarmManager.RTC_WAKEUP,
-                            reminder.reminderDateTime,
-                            pendingIntent
-                        )
-                    } else {
-                        alarmManager.setExact(
-                            AlarmManager.RTC_WAKEUP,
-                            reminder.reminderDateTime,
-                            pendingIntent
-                        )
-                    }
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        reminder.reminderDateTime,
+                        pendingIntent
+                    )
                 } else {
                     // Best-effort fallback using set which may be inexact but still fires
                     alarmManager.set(
@@ -161,46 +153,6 @@ class ReminderManager private constructor(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error scheduling reminder", e)
             Result.failure(e)
-        }
-    }
-
-    /**
-     * Cancel a scheduled reminder
-     */
-    suspend fun cancelReminder(reminderId: String): Result<String> = withContext(Dispatchers.IO) {
-        return@withContext try {
-            // Cancel the alarm
-            val intent = Intent(context, ReminderReceiver::class.java)
-            val pendingIntent = PendingIntent.getBroadcast(
-                context,
-                reminderId.hashCode(),
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-
-            alarmManager.cancel(pendingIntent)
-
-            // Remove from database - Fixed method name
-            reminderDao.deactivateReminder(reminderId)
-
-            Log.d(TAG, "🗑️ Reminder cancelled: $reminderId")
-            Result.success("Reminder cancelled")
-
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error cancelling reminder", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Get all active reminders for a note
-     */
-    suspend fun getRemindersForNote(noteId: String): List<ReminderEntity> = withContext(Dispatchers.IO) {
-        return@withContext try {
-            reminderDao.getRemindersForNote(noteId)
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error getting reminders for note", e)
-            emptyList()
         }
     }
 
@@ -247,19 +199,11 @@ class ReminderManager private constructor(private val context: Context) {
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
 
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        alarmManager.setExactAndAllowWhileIdle(
-                            AlarmManager.RTC_WAKEUP,
-                            reminder.reminderTime, // Fixed field name
-                            pendingIntent
-                        )
-                    } else {
-                        alarmManager.setExact(
-                            AlarmManager.RTC_WAKEUP,
-                            reminder.reminderTime, // Fixed field name
-                            pendingIntent
-                        )
-                    }
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        reminder.reminderTime, // Fixed field name
+                        pendingIntent
+                    )
                     rescheduledCount++
                 } else {
                     // Mark expired reminders as inactive - Fixed using deactivateReminder
@@ -305,17 +249,6 @@ class ReminderManager private constructor(private val context: Context) {
     }
 
     /**
-     * Request exact alarm permission
-     */
-    fun requestExactAlarmPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !canScheduleExactAlarms()) {
-            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            context.startActivity(intent)
-        }
-    }
-
-    /**
      * Show notification for triggered reminder
      */
     fun showReminderNotification(
@@ -348,10 +281,9 @@ class ReminderManager private constructor(private val context: Context) {
             )
 
             val notification = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon( R.drawable.logo2)
                 .setContentTitle("🔔 $title")
                 .setContentText(description)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(description))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setAutoCancel(true)

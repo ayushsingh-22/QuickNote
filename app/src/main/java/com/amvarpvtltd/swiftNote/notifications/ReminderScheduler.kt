@@ -4,19 +4,28 @@ import android.app.AlarmManager
 import android.content.Context
 import android.util.Log
 import androidx.work.*
+import com.amvarpvtltd.swiftNote.components.NotificationHelper
 import com.amvarpvtltd.swiftNote.reminders.ReminderEntity
 import java.util.concurrent.TimeUnit
 
 class ReminderScheduler(private val context: Context) {
 
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    private val notificationHelper = NotificationHelper(context)
+    private val systemNotificationHelper = SystemNotificationHelper(context)
 
-    fun scheduleReminder(reminder: ReminderEntity) {
+    fun scheduleReminder(
+        reminder: ReminderEntity,
+        isSmartReminder: Boolean = false
+    ) {
         val currentTime = System.currentTimeMillis()
 
         if (reminder.reminderTime <= currentTime) {
             Log.w("ReminderScheduler", "Cannot schedule reminder in the past")
+            // Show in-app notification about the error
+            NotificationHelper.showWarning(
+                title = "Reminder Not Set",
+                message = "Cannot set reminder for a time in the past"
+            )
             return
         }
 
@@ -27,14 +36,22 @@ class ReminderScheduler(private val context: Context) {
                 "reminderId" to reminder.id,
                 "noteId" to reminder.noteId,
                 "noteTitle" to reminder.noteTitle,
-                "noteDescription" to reminder.noteDescription
+                "noteDescription" to reminder.noteDescription,
+                "isSmartReminder" to isSmartReminder
             ))
             .addTag("reminder_${reminder.id}")
             .build()
 
         WorkManager.getInstance(context).enqueue(workRequest)
 
-        Log.d("ReminderScheduler", "Scheduled reminder ${reminder.id} for ${reminder.noteTitle}")
+        val reminderType = if (isSmartReminder) "Smart reminder" else "Reminder"
+        Log.d("ReminderScheduler", "Scheduled $reminderType ${reminder.id} for ${reminder.noteTitle}")
+
+        // Show in-app notification confirmation
+        NotificationHelper.showSuccess(
+            title = "Reminder Set",
+            message = "${if (isSmartReminder) "Smart reminder" else "Reminder"} set for \"${reminder.noteTitle}\""
+        )
     }
 
     fun cancelReminder(reminderId: String) {
@@ -42,16 +59,22 @@ class ReminderScheduler(private val context: Context) {
         WorkManager.getInstance(context).cancelAllWorkByTag("reminder_$reminderId")
 
         // Cancel any existing notification
-        notificationHelper.cancelNotification(reminderId)
+        systemNotificationHelper.cancelNotification(reminderId)
 
         Log.d("ReminderScheduler", "Cancelled reminder $reminderId")
+
+        // Show in-app notification
+        NotificationHelper.showInfo(
+            title = "Reminder Canceled",
+            message = "The reminder has been canceled"
+        )
     }
 
-    fun rescheduleAllReminders(reminders: List<ReminderEntity>) {
+    fun rescheduleAllReminders(reminders: List<ReminderEntity>, isSmartReminder: Boolean = false) {
         val currentTime = System.currentTimeMillis()
 
         reminders.filter { it.isActive && it.reminderTime > currentTime }
-            .forEach { scheduleReminder(it) }
+            .forEach { scheduleReminder(it, isSmartReminder) }
     }
 }
 
@@ -65,9 +88,19 @@ class ReminderWorker(
         val noteId = inputData.getString("noteId") ?: return Result.failure()
         val noteTitle = inputData.getString("noteTitle") ?: return Result.failure()
         val noteDescription = inputData.getString("noteDescription") ?: ""
+        val isSmartReminder = inputData.getBoolean("isSmartReminder", false)
 
-        val notificationHelper = NotificationHelper(applicationContext)
-        notificationHelper.showReminderNotification(reminderId, noteId, noteTitle, noteDescription)
+        val systemNotificationHelper = SystemNotificationHelper(applicationContext)
+        systemNotificationHelper.showReminderNotification(
+            reminderId = reminderId,
+            noteId = noteId,
+            noteTitle = noteTitle,
+            noteDescription = noteDescription,
+            isSmartReminder = isSmartReminder
+        )
+
+        // We don't need to show in-app notification here since we're showing a system notification
+        // and the user might not have the app open at this moment
 
         Log.d("ReminderWorker", "Showed reminder notification for note: $noteTitle")
 

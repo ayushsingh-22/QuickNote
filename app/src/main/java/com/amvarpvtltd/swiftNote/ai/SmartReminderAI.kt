@@ -3,12 +3,19 @@ package com.amvarpvtltd.swiftNote.ai
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
-import com.google.mlkit.nl.entityextraction.*
+import com.google.mlkit.nl.entityextraction.DateTimeEntity
+import com.google.mlkit.nl.entityextraction.EntityAnnotation
+import com.google.mlkit.nl.entityextraction.EntityExtraction
+import com.google.mlkit.nl.entityextraction.EntityExtractor
+import com.google.mlkit.nl.entityextraction.EntityExtractorOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
 import kotlin.coroutines.resume
 
 /**
@@ -100,13 +107,21 @@ class SmartReminderAI(private val context: Context) {
                         )
 
                         // If ML Kit didn't find anything, try a regex fallback for common English patterns
-                        val finalReminders = if (detectedReminders.isEmpty()) {
-                            val fallback = regexFallbackForReminders(combinedText, noteTitle)
-                            if (fallback.isNotEmpty()) {
-                                Log.d(TAG, "🔁 Fallback regex detected ${fallback.size} reminder(s)")
+                        val finalReminders =
+                            detectedReminders.ifEmpty {
+                                val fallback =
+                                    regexFallbackForReminders(
+                                        combinedText,
+                                        noteTitle
+                                    )
+                                if (fallback.isNotEmpty()) {
+                                    Log.d(
+                                        TAG,
+                                        "🔁 Fallback regex detected ${fallback.size} reminder(s)"
+                                    )
+                                }
+                                fallback
                             }
-                            fallback
-                        } else detectedReminders
 
                         Log.d(TAG, "✅ Found ${finalReminders.size} potential reminders")
                         continuation.resume(Result.success(finalReminders))
