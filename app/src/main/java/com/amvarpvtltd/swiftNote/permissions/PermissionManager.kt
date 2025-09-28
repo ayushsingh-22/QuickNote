@@ -31,13 +31,14 @@ class PermissionManager(
 
     /**
      * Configuration for permission messages and behavior
+     * Enhanced for Play Store policy compliance
      */
     data class PermissionConfig(
-        val rationaleMessage: String = "📱 SwiftNote needs notification permission to send you smart reminders for your notes.",
-        val grantedMessage: String = "✅ Notification permission granted! You'll receive smart reminders.",
-        val deniedMessage: String = "⚠️ Notification permission denied. You won't receive reminders.",
+        val rationaleMessage: String = "📱 SwiftNote uses notifications to remind you about your important notes and tasks. This helps you stay organized and never miss important reminders. You can manage notification preferences in Settings.",
+        val grantedMessage: String = "✅ Notification permission granted! You can now receive smart reminders for your notes.",
+        val deniedMessage: String = "⚠️ Without notification permission, you won't receive reminders. You can enable this later in device Settings > Apps > SwiftNote > Permissions.",
         val showToastMessages: Boolean = true,
-        val requestOnlyOnce: Boolean = true
+        val requestOnlyOnce: Boolean = false // Allow users to reconsider their choice
     )
 
     private val config = PermissionConfig()

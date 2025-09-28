@@ -1,19 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
+   Data extraction rules for SwiftNote - GDPR and user privacy compliant
    See https://developer.android.com/about/versions/12/backup-restore#xml-changes
    for details.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- Include user-generated content and preferences -->
+        <include domain="sharedpref" path="theme_preferences"/>
+        <include domain="sharedpref" path="view_mode_preferences"/>
+        <include domain="sharedpref" path="user_settings"/>
+        
+        <!-- Include user notes and reminders (with encryption) -->
+        <include domain="database" path="notes_database"/>
+        <include domain="database" path="reminders_database"/>
+        
+        <!-- Exclude all sensitive authentication and security data -->
+        <exclude domain="sharedpref" path="device_credentials"/>
+        <exclude domain="sharedpref" path="encryption_keys"/>
+        <exclude domain="sharedpref" path="auth_tokens"/>
+        <exclude domain="sharedpref" path="permission_prefs"/>
+        <exclude domain="sharedpref" path="firebase_auth"/>
+        
+        <!-- Exclude temporary files and caches -->
+        <exclude domain="file" path="temp/"/>
+        <exclude domain="file" path="cache/"/>
+        <exclude domain="file" path="logs/"/>
+        <exclude domain="file" path="crashlytics/"/>
+        
+        <!-- Exclude any external service data -->
+        <exclude domain="file" path="firebase/"/>
+        <exclude domain="file" path="mlkit/"/>
+        <exclude domain="file" path="camera/"/>
     </cloud-backup>
-    <!--
+    
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <!-- Allow transfer of user preferences and settings -->
+        <include domain="sharedpref" path="theme_preferences"/>
+        <include domain="sharedpref" path="view_mode_preferences"/>
+        <include domain="sharedpref" path="user_settings"/>
+        
+        <!-- Allow transfer of user data -->
+        <include domain="database" path="notes_database"/>
+        <include domain="database" path="reminders_database"/>
+        
+        <!-- Never transfer sensitive security data during device transfer -->
+        <exclude domain="sharedpref" path="device_credentials"/>
+        <exclude domain="sharedpref" path="encryption_keys"/>
+        <exclude domain="sharedpref" path="auth_tokens"/>
+        <exclude domain="sharedpref" path="permission_prefs"/>
+        
+        <!-- Exclude temporary and cached data -->
+        <exclude domain="file" path="temp/"/>
+        <exclude domain="file" path="cache/"/>
+        <exclude domain="file" path="logs/"/>
     </device-transfer>
-    -->
 </data-extraction-rules>
