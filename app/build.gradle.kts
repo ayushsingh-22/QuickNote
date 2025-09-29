@@ -8,14 +8,14 @@ plugins {
 
 android {
     namespace = "com.amvarpvtltd.swiftNote"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.amvarpvtltd.selfnote"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 7
-        versionName = "1.0.6"
+        minSdk = 31
+        targetSdk = 36
+        versionCode = 8
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -35,6 +35,16 @@ android {
                 )
             }
         }
+
+
+        // Add explicit 16 KB page size support
+        externalNativeBuild {
+            cmake {
+                arguments += listOf(
+                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+                )
+            }
+        }
     }
 
     buildTypes {
@@ -44,9 +54,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Enable 16KB page size optimizations in release builds
+            // Enable debug symbols for crash reporting
             ndk {
-                debugSymbolLevel = "NONE"
+                debugSymbolLevel = "SYMBOL_TABLE"
             }
         }
         debug {
@@ -101,42 +111,23 @@ android {
             excludes += "**/dump_syms.bin"
         }
 
-        // Critical: JNI library configuration for 16KB alignment
+        // Enable 16 KB page size alignment for .so files
         jniLibs {
             useLegacyPackaging = false
-            // Enable 16KB alignment for all native libraries
-            keepDebugSymbols += listOf("**/*.so")
-            pickFirsts += listOf(
-                "**/libc++_shared.so",
-                "**/libjsc.so",
-                "**/libfbjni.so",
-                "**/libreactnativejni.so",
-                "**/libhermes.so"
-            )
-            // Exclude debug symbols that cause alignment issues
-            excludes += listOf(
-                "**/dump_syms.bin",
-                "**/dump_syms/**",
-                "**/libcrashlytics.so"
-            )
-        }
-
-        // Ensure proper DEX alignment
-        dex {
-            useLegacyPackaging = false
+            // Enable 16 KB page alignment
+            pickFirsts += listOf("**/libc++_shared.so", "**/liblog.so")
         }
     }
 
-    // Remove problematic splits configuration and replace with proper one
+    // Updated splits configuration for 16 KB support
     splits {
         abi {
             isEnable = true
             reset()
-            // Only include ABIs that support 16KB page size properly
+            // Only include 64-bit ABIs that properly support 16KB page size
             include("arm64-v8a", "x86_64")
             isUniversalApk = false
         }
-        // Remove density splits completely as they're deprecated
     }
 
     // Add lint configuration to catch 16KB compatibility issues
@@ -194,6 +185,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.pdf.viewer)
     kapt(libs.androidx.room.compiler)
 
     // ML Kit Entity Extraction for Smart Reminders

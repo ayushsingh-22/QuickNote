@@ -42,7 +42,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 @Composable
-fun MyApp() {
+fun MyApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
 
     // Initialize theme management
@@ -149,7 +149,10 @@ fun MyApp() {
 
     // Apply theme to entire app
     ProvideNoteTheme(themeMode = currentTheme) {
-        Surface(color = MaterialTheme.colorScheme.surfaceTint) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceTint,
+            modifier = modifier
+        ) {
             if (isInitializing) {
                 LoadingScreen()
             } else {
