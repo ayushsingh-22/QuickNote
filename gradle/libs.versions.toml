@@ -30,6 +30,8 @@ zxing = "3.5.1"
 concurrentFutures = "1.2.0"
 foundation = "1.9.0"
 pdfViewer = "1.0.0-alpha10"
+# Firebase Crashlytics plugin
+crashlytics = "2.9.8"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -93,3 +95,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+# Add Firebase Crashlytics plugin
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }

@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import android.view.WindowManager
+import androidx.core.view.WindowCompat
 
 abstract class BaseFullScreenActivity : AppCompatActivity() {
 
@@ -22,7 +23,7 @@ abstract class BaseFullScreenActivity : AppCompatActivity() {
 
     private fun setupFullScreen() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false)
+            WindowCompat.setDecorFitsSystemWindows(window, false)
         }
 
         @Suppress("DEPRECATION")

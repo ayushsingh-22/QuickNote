@@ -3,6 +3,7 @@ package com.amvarpvtltd.swiftNote.design
 import android.content.ClipboardManager
 import android.content.Context
 import android.text.Html
+import android.text.Html.fromHtml
 import android.text.Spanned
 import android.util.Log
 import android.widget.Toast
@@ -193,10 +194,10 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
             // If clipboard has HTML and the recent field change matches the plain text -> user pasted
             if (!htmlText.isNullOrBlank() && !plain.isNullOrBlank() && (plain.trim() == title.trim() || plain.trim() == description.trim())) {
                 val spanned: Spanned = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                    Html.fromHtml(htmlText, Html.FROM_HTML_MODE_LEGACY)
+                    fromHtml(htmlText, Html.FROM_HTML_MODE_LEGACY)
                 } else {
                     @Suppress("DEPRECATION")
-                    Html.fromHtml(htmlText)
+                    (fromHtml(htmlText))
                 }
 
                 val annotated = spannedToAnnotatedString(spanned)
@@ -288,7 +289,7 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         val reminders = result.getOrNull() ?: emptyList()
                         if (reminders.isNotEmpty()) {
                             // For existing notes, create reminders immediately
-                            if (isEditing && noteId != null) {
+                            if (isEditing) {
                                 var createdCount = 0
                                 reminders.forEach { reminder ->
                                     if (reminder.confidence >= 0.6f) {
@@ -359,7 +360,12 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         fun looksLikeHtml(s: String) = s.contains(Regex("<[^>]+>"))
 
                         if (looksLikeHtml(titleCandidate)) {
-                            val sp = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) Html.fromHtml(titleCandidate, Html.FROM_HTML_MODE_LEGACY) else Html.fromHtml(titleCandidate)
+                            val sp = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                                Html.fromHtml(titleCandidate, Html.FROM_HTML_MODE_LEGACY)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                Html.fromHtml(titleCandidate)
+                            }
                             titleFormatted = spannedToAnnotatedString(sp as Spanned)
                             titleHtml = titleCandidate
                             title = sp.toString()
@@ -368,7 +374,12 @@ fun AddScreen(navController: NavHostController, noteId: String?) {
                         }
 
                         if (looksLikeHtml(descCandidate)) {
-                            val spd = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) Html.fromHtml(descCandidate, Html.FROM_HTML_MODE_LEGACY) else Html.fromHtml(descCandidate)
+                            val spd = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                                Html.fromHtml(descCandidate, Html.FROM_HTML_MODE_LEGACY)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                Html.fromHtml(descCandidate)
+                            }
                             descriptionFormatted = spannedToAnnotatedString(spd as Spanned)
                             descriptionHtml = descCandidate
                             description = spd.toString()

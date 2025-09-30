@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.view.WindowCompat
 
 class MainActivity : ComponentActivity() {
 
@@ -290,7 +291,7 @@ class MainActivity : ComponentActivity() {
     private fun setupFullScreen() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                window.setDecorFitsSystemWindows(false)
+                WindowCompat.setDecorFitsSystemWindows(window, false)
                 val controller = window.insetsController
                 if (controller != null) {
                     controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
