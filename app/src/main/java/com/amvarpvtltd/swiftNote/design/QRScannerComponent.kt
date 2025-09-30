@@ -37,8 +37,7 @@ fun QRScannerSection(
     onQRScanned: (String) -> Unit,
     onCancel: () -> Unit
 ) {
-//    val context = LocalContext.current
-//    val lifecycleOwner = LocalLifecycleOwner.current
+
     var hasCameraPermission by remember { mutableStateOf(false) }
     var isScanning by remember { mutableStateOf(false) }
 

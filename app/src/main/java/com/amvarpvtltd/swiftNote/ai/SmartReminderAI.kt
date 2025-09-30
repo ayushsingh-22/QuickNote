@@ -17,11 +17,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import kotlin.coroutines.resume
-
-/**
- * Smart Reminder AI using ML Kit Entity Extraction
- * Detects date/time information from note text using Google's on-device AI
- */
 class SmartReminderAI(private val context: Context) {
     private val TAG = "SmartReminderAI"
 
@@ -197,10 +192,6 @@ class SmartReminderAI(private val context: Context) {
 
         return reminders.distinctBy { it.reminderDateTime }.sortedBy { it.reminderDateTime }
     }
-
-    /**
-     * Process DateTimeEntity to extract timestamp
-     */
     private fun processDateTimeEntity(entity: DateTimeEntity): Long? {
         return try {
             val calendar = Calendar.getInstance()
@@ -313,8 +304,7 @@ class SmartReminderAI(private val context: Context) {
      * Calculate confidence for the detected reminder based on entity characteristics
      */
     private fun calculateConfidence(entity: DateTimeEntity, extractedText: String): Float {
-        // Since ML Kit Entity doesn't provide confidence directly,
-        // we calculate it based on various factors
+
         var confidence = 0.7f // Base confidence
 
         // Higher confidence for more specific time granularity
@@ -335,10 +325,6 @@ class SmartReminderAI(private val context: Context) {
         return confidence.coerceIn(0.0f, 1.0f)
     }
 
-    /**
-     * Lightweight regex-based fallback to detect common English date/time phrases
-     * Returns a list of DetectedReminder when patterns are found
-     */
     private fun regexFallbackForReminders(text: String, noteTitle: String): List<DetectedReminder> {
         val reminders = mutableListOf<DetectedReminder>()
         try {

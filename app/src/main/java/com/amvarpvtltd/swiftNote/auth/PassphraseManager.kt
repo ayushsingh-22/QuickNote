@@ -9,7 +9,6 @@ import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.security.SecureRandom
 import androidx.core.content.edit
 
 object PassphraseManager {
@@ -17,43 +16,12 @@ object PassphraseManager {
     private const val PREFS = "passphrase_prefs"
     private const val KEY_PASSPHRASE = "device_passphrase"
 
-    // Word lists for generating human-readable passphrases
-    private val adjectives = listOf(
-        "happy", "bright", "swift", "calm", "brave", "smart", "quick", "bold",
-        "wise", "kind", "cool", "warm", "fresh", "clear", "deep", "pure",
-        "royal", "magic", "lucky", "sunny", "misty", "crystal", "golden", "silver"
-    )
-
-    private val nouns = listOf(
-        "tiger", "eagle", "wolf", "lion", "bear", "fox", "hawk", "deer",
-        "ocean", "mountain", "river", "forest", "star", "moon", "sun", "cloud",
-        "diamond", "ruby", "pearl", "crystal", "thunder", "lightning", "storm", "rainbow"
-    )
-
-    private val numbers = (100..999).toList()
-
-    /**
-     * Generate a unique human-readable passphrase like "happy-tiger-742"
-     */
-    fun generatePassphrase(): String {
-        val random = SecureRandom()
-        val adjective = adjectives[random.nextInt(adjectives.size)]
-        val noun = nouns[random.nextInt(nouns.size)]
-        val number = numbers[random.nextInt(numbers.size)]
-        return "$adjective-$noun-$number"
-    }
-
-    /**
-     * Get stored passphrase from SharedPreferences
-     */
     fun getStoredPassphrase(context: Context): String? {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_PASSPHRASE, null)
     }
 
-    /**
-     * Store passphrase in SharedPreferences and Firebase
-     */
+
     suspend fun storePassphrase(context: Context, passphrase: String): Result<Unit> = withContext(Dispatchers.IO) {
         // Ensure authenticated before writing to Firebase
         val authResult = ensureAuthenticated()
@@ -112,9 +80,6 @@ object PassphraseManager {
          }
      }
 
-    /**
-     * Verify if a passphrase exists in Firebase
-     */
     suspend fun verifyPassphrase(passphrase: String): Result<Boolean> = withContext(Dispatchers.IO) {
         // First, ensure we are authenticated (some DB rules may require authentication)
         val authResult = ensureAuthenticated()
@@ -147,18 +112,13 @@ object PassphraseManager {
         }
     }
 
-    /**
-     * Generate QR code for the passphrase
-     */
+
     fun generateQRCode(passphrase: String): Bitmap {
         // Create a deep link format for the QR code
         val deepLink = "SwiftNote://sync?passphrase=$passphrase"
         return QRUtils.generateQrBitmap(deepLink)
     }
 
-    /**
-     * Extract passphrase from QR code deep link
-     */
     fun extractPassphraseFromQR(qrContent: String): String? {
         try {
             Log.d(TAG, "Processing QR content: $qrContent")
@@ -341,10 +301,6 @@ object PassphraseManager {
              return null
          }
      }
-
-    /**
-     * Validate passphrase format (adjective-noun-number)
-     */
     fun isValidPassphraseFormat(passphrase: String): Boolean {
         val parts = passphrase.split("-")
         return parts.size == 3 &&
@@ -353,32 +309,6 @@ object PassphraseManager {
                parts[2].matches(Regex("\\d{3}"))
     }
 
-    /**
-     * Update last active timestamp for a passphrase
-     */
-    suspend fun updateLastActive(passphrase: String): Result<Unit> = withContext(Dispatchers.IO) {
-        // Ensure authenticated before updating
-        val authResult = ensureAuthenticated()
-        if (authResult.isFailure) {
-            val ex = authResult.exceptionOrNull()
-            Log.e(TAG, "Auth failed before updateLastActive: ${ex?.message}")
-            return@withContext Result.failure(Exception("Authentication failed: ${ex?.message ?: "unknown"}"))
-        }
-
-        return@withContext try {
-            val database = FirebaseDatabase.getInstance()
-            val userRef = database.getReference("users").child(passphrase)
-            userRef.child("lastActiveAt").setValue(System.currentTimeMillis()).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to update last active", e)
-            Result.failure(e)
-        }
-    }
-
-    /**
-     * Clear stored passphrase (for logout)
-     */
     fun clearStoredPassphrase(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit {

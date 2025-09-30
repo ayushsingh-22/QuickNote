@@ -4,11 +4,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.amvarpvtltd.swiftNote.design.NoteTheme
 import java.security.SecureRandom
-
-/**
- * Provides a single random background palette per app run so all screens share the same gradient.
- * The palette is chosen lazily on first request and then reused.
- */
 object BackgroundProvider {
     private var chosenIndex: Int? = null
 
@@ -29,7 +24,5 @@ object BackgroundProvider {
         val colors = palettes[chosenIndex!!].invoke()
         return Brush.verticalGradient(colors = colors)
     }
-
-
 }
 

@@ -10,7 +10,6 @@ import java.util.concurrent.TimeUnit
 
 class ReminderScheduler(private val context: Context) {
 
-    private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     private val systemNotificationHelper = SystemNotificationHelper(context)
 
     fun scheduleReminder(
@@ -98,9 +97,6 @@ class ReminderWorker(
             noteDescription = noteDescription,
             isSmartReminder = isSmartReminder
         )
-
-        // We don't need to show in-app notification here since we're showing a system notification
-        // and the user might not have the app open at this moment
 
         Log.d("ReminderWorker", "Showed reminder notification for note: $noteTitle")
 
